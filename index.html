@@ -1,0 +1,4368 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Elton GB Contrôle — Gestion Carburant</title>
+
+<!-- PWA -->
+<link rel="manifest" href="data:application/json,{%22name%22:%22Elton%20GB%20Contr%C3%B4le%22,%22short_name%22:%22Elton%20GB%22,%22start_url%22:%22/%22,%22display%22:%22standalone%22,%22background_color%22:%22%230a0c10%22,%22theme_color%22:%22%23f0a500%22}">
+<meta name="theme-color" content="#f0a500">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Elton GB">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+
+<script>
+// ═══════════════════════════════════════════════
+// FIREBASE — Chargement dynamique sécurisé
+// ═══════════════════════════════════════════════
+window.fbReady = false;
+document.title = 'Elton GB v2.0';
+
+function initFirebase() {
+  try {
+    const firebaseConfig = {
+      apiKey: "AIzaSyD-CQifbLaO31y5OXxwER4s4gWNiXMj6Y0",
+      authDomain: "elton-gb-controle.firebaseapp.com",
+      projectId: "elton-gb-controle",
+      storageBucket: "elton-gb-controle.firebasestorage.app",
+      messagingSenderId: "895738767884",
+      appId: "1:895738767884:web:91fe542aa57daf67c9dc29"
+    };
+    if (typeof firebase === 'undefined') {
+      console.warn('[Firebase] SDK non chargé — mode local uniquement');
+      return;
+    }
+    firebase.initializeApp(firebaseConfig);
+    window.fbDB = firebase.firestore();
+    window.fbDB.enablePersistence({ synchronizeTabs: false }).catch(() => {});
+    window.fbReady = true;
+    console.log('[Firebase] Initialisé avec succès');
+  } catch(e) {
+    console.warn('[Firebase] Erreur init:', e.message);
+  }
+}
+
+// Charger Firebase SDK de manière dynamique
+function loadFirebaseSDK(callback) {
+  const script1 = document.createElement('script');
+  script1.src = 'https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js';
+  script1.onload = function() {
+    const script2 = document.createElement('script');
+    script2.src = 'https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js';
+    script2.onload = function() {
+      initFirebase();
+      if (callback) callback();
+    };
+    script2.onerror = function() {
+      console.warn('[Firebase] Firestore SDK non chargé');
+      if (callback) callback();
+    };
+    document.head.appendChild(script2);
+  };
+  script1.onerror = function() {
+    console.warn('[Firebase] App SDK non chargé — mode hors-ligne');
+    if (callback) callback();
+  };
+  document.head.appendChild(script1);
+}
+</script>
+
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,700;1,300&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+
+  :root {
+    --bg: #0a0c10;
+    --surface: #111318;
+    --surface2: #181c24;
+    --border: #1e2530;
+    --border2: #2a3240;
+    --accent: #f0a500;
+    --accent2: #e05c00;
+    --gasoil: #3b9eff;
+    --super: #ff5a5a;
+    --text: #e8eaf0;
+    --muted: #6b7585;
+    --success: #2ecc71;
+    --danger: #e74c3c;
+    --warning: #f39c12;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html {
+    overscroll-behavior-y: contain;
+    overscroll-behavior-x: none;
+    height: 100%;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #app {
+    overflow-x: hidden;
+    overflow-y: visible;
+  }
+
+  .main-content {
+    overflow-x: hidden;
+  }
+
+  /* ─── LOGIN ─── */
+  #login-screen {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(ellipse at 30% 50%, #1a1000 0%, var(--bg) 60%);
+    position: relative;
+  }
+
+  #login-screen::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 40px,
+      rgba(240,165,0,0.02) 40px,
+      rgba(240,165,0,0.02) 41px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      transparent,
+      transparent 40px,
+      rgba(240,165,0,0.02) 40px,
+      rgba(240,165,0,0.02) 41px
+    );
+  }
+
+  .login-box {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-top: 3px solid var(--accent);
+    padding: 48px 40px;
+    width: 420px;
+    position: relative;
+    z-index: 1;
+    box-shadow: 0 40px 80px rgba(0,0,0,0.6);
+  }
+
+  .brand {
+    text-align: center;
+    margin-bottom: 36px;
+  }
+
+  .brand-icon {
+    font-size: 40px;
+    margin-bottom: 8px;
+    display: block;
+  }
+
+  .brand-name {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 28px;
+    color: var(--accent);
+    letter-spacing: 3px;
+    display: block;
+  }
+
+  .brand-sub {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+
+  .form-group {
+    margin-bottom: 20px;
+  }
+
+  label {
+    display: block;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  input[type="text"], input[type="password"], input[type="number"], input[type="date"], select, textarea {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border2);
+    color: var(--text);
+    padding: 12px 16px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+    border-radius: 0;
+    -webkit-appearance: none;
+  }
+
+  input:focus, select:focus, textarea:focus {
+    border-color: var(--accent);
+  }
+
+  select option { background: var(--surface); }
+
+  .btn {
+    display: inline-block;
+    padding: 14px 28px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 16px;
+    letter-spacing: 2px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: center;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #000;
+    width: 100%;
+  }
+  .btn-primary:hover { background: #ffc020; }
+
+  .btn-secondary {
+    background: transparent;
+    border: 1px solid var(--border2);
+    color: var(--muted);
+  }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+  .btn-danger {
+    background: var(--danger);
+    color: #fff;
+    padding: 8px 16px;
+    font-size: 12px;
+  }
+  .btn-success {
+    background: var(--success);
+    color: #000;
+  }
+
+  .btn-sm { padding: 8px 16px; font-size: 13px; }
+
+  .error-msg {
+    color: var(--danger);
+    font-size: 12px;
+    margin-top: 8px;
+    display: none;
+  }
+
+  /* ─── APP LAYOUT ─── */
+  #app { display: none; min-height: 100vh; }
+
+  .topbar {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 16px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    gap: 12px;
+  }
+
+  .topbar-brand {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 20px;
+    color: var(--accent);
+    letter-spacing: 3px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  .user-badge {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--surface2);
+    padding: 5px 10px;
+    border: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  @media (max-width: 480px) {
+    .user-badge .user-role { display: none; }
+    .user-badge > div > div:first-child { font-size: 12px !important; }
+    .topbar-brand { font-size: 16px; letter-spacing: 2px; }
+    .lang-btn { padding: 3px 8px; font-size: 10px; }
+    .btn-logout { font-size: 12px !important; padding: 4px 8px; }
+  }
+
+  .user-avatar {
+    width: 30px;
+    height: 30px;
+    background: var(--accent);
+    color: #000;
+    font-weight: 700;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+  }
+
+  .user-role {
+    font-size: 10px;
+    letter-spacing: 1px;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  .btn-logout {
+    background: none;
+    border: 1px solid var(--border2);
+    color: var(--muted);
+    padding: 6px 14px;
+    cursor: pointer;
+    font-size: 12px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    transition: all 0.2s;
+  }
+  .btn-logout:hover { border-color: var(--danger); color: var(--danger); }
+
+  .main-content {
+    padding: 32px;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  /* ─── TABS ─── */
+  .tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 2px solid var(--border);
+    margin-bottom: 32px;
+  }
+
+  .tab {
+    padding: 12px 24px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 15px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: all 0.2s;
+    background: none;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+  }
+
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* ─── PAGE HEADERS ─── */
+  .page-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    gap: 12px;
+  }
+
+  .page-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 26px;
+    letter-spacing: 3px;
+    color: var(--text);
+    line-height: 1;
+  }
+
+  .page-subtitle {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  /* ─── CARDS ─── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .card-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 18px;
+    letter-spacing: 2px;
+  }
+
+  /* ─── PRODUCT SECTIONS ─── */
+  .product-section {
+    padding: 20px;
+    border: 1px solid var(--border);
+    margin-bottom: 16px;
+    position: relative;
+  }
+
+  .product-label {
+    position: absolute;
+    top: -12px;
+    left: 16px;
+    padding: 2px 12px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 14px;
+    letter-spacing: 2px;
+  }
+
+  .product-gasoil .product-label { background: var(--gasoil); color: #000; }
+  .product-super .product-label { background: var(--super); color: #fff; }
+  .product-gasoil { border-color: rgba(59,158,255,0.3); }
+  .product-super { border-color: rgba(255,90,90,0.3); }
+
+  .index-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  .index-item {
+    background: var(--bg);
+    padding: 16px;
+    border: 1px solid var(--border);
+  }
+
+  .index-item label {
+    color: var(--muted);
+    font-size: 10px;
+  }
+
+  .vente-display {
+    background: var(--surface2);
+    padding: 12px 16px;
+    margin-top: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border: 1px solid var(--border2);
+  }
+
+  .vente-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--muted);
+  }
+
+  .vente-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 20px;
+    font-weight: 700;
+  }
+
+  .vente-gasoil { color: var(--gasoil); }
+  .vente-super { color: var(--super); }
+
+  /* ─── TABLE ─── */
+  .table-wrap {
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .data-table {
+    width: 100%;
+    min-width: 500px;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  .data-table th {
+    background: var(--surface2);
+    padding: 10px 14px;
+    text-align: left;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 700;
+    border-bottom: 1px solid var(--border2);
+  }
+
+  .data-table td {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+
+  .data-table tr:hover td { background: var(--surface2); }
+
+  .badge {
+    display: inline-block;
+    padding: 3px 10px;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    border-radius: 2px;
+  }
+
+  .badge-gasoil { background: rgba(59,158,255,0.15); color: var(--gasoil); }
+  .badge-super { background: rgba(255,90,90,0.15); color: var(--super); }
+  .badge-active { background: rgba(46,204,113,0.15); color: var(--success); }
+  .badge-admin { background: rgba(240,165,0,0.15); color: var(--accent); }
+
+  .mono { font-family: 'JetBrains Mono', monospace; }
+
+  /* ─── STATS GRID ─── */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+  }
+
+  .stat-card.s-accent::before { background: var(--accent); }
+  .stat-card.s-gasoil::before { background: var(--gasoil); }
+  .stat-card.s-super::before { background: var(--super); }
+  .stat-card.s-success::before { background: var(--success); }
+
+  .stat-label {
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  .stat-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1;
+  }
+
+  .stat-unit {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  /* ─── SECTION TITLES ─── */
+  .section-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 20px;
+    letter-spacing: 2px;
+    margin-bottom: 16px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* ─── DATE DISPLAY ─── */
+  .date-strip {
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 24px;
+  }
+
+  .date-icon { color: var(--accent); font-size: 16px; }
+
+  .date-text {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--text);
+  }
+
+  /* ─── RECEPTION ─── */
+  .reception-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr auto;
+    gap: 12px;
+    align-items: end;
+    margin-bottom: 12px;
+    background: var(--bg);
+    padding: 16px;
+    border: 1px solid var(--border);
+  }
+
+  /* ─── MODAL ─── */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.8);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+  }
+
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-top: 3px solid var(--accent);
+    padding: 32px;
+    width: 480px;
+    max-width: 95vw;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  .modal-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 22px;
+    letter-spacing: 2px;
+    margin-bottom: 24px;
+  }
+
+  .modal-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 24px;
+  }
+
+  /* ─── ALERTS ─── */
+  .alert {
+    padding: 12px 16px;
+    margin-bottom: 16px;
+    font-size: 13px;
+    border-left: 3px solid;
+    display: none;
+  }
+
+  .alert.show { display: block; }
+  .alert-success { background: rgba(46,204,113,0.1); border-color: var(--success); color: var(--success); }
+  .alert-danger { background: rgba(231,76,60,0.1); border-color: var(--danger); color: var(--danger); }
+  .alert-warning { background: rgba(243,156,18,0.1); border-color: var(--warning); color: var(--warning); }
+
+  /* ─── STATION FILTER ─── */
+  .filter-bar {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+
+  .filter-bar select,
+  .filter-bar input { width: auto; flex: 1; min-width: 150px; }
+
+  /* ─── RESPONSIVE ─── */
+  @media (max-width: 768px) {
+    .main-content { padding: 12px; }
+    .index-grid { grid-template-columns: 1fr; }
+    .stats-grid { grid-template-columns: 1fr 1fr; }
+    .reception-row { grid-template-columns: 1fr 1fr; }
+    .topbar { padding: 0 12px; }
+    .tabs { 
+      overflow-x: auto; 
+      -webkit-overflow-scrolling: touch;
+      flex-wrap: nowrap;
+    }
+    .tab { white-space: nowrap; padding: 10px 16px; font-size: 13px; }
+    .page-header { flex-direction: column; }
+    .data-table { font-size: 11px; }
+    .data-table th, .data-table td { padding: 8px 10px; }
+    .stats-grid { grid-template-columns: 1fr; }
+    .topbar-brand { font-size: 18px; }
+    .user-badge { padding: 4px 10px; }
+  }
+
+  /* ─── EMPTY STATE ─── */
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+  }
+
+  .empty-state-icon { font-size: 48px; margin-bottom: 16px; opacity: 0.4; }
+  .empty-state-text { font-size: 14px; }
+
+  /* ─── FORM ROW ─── */
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  @media (max-width: 480px) {
+    .form-row { grid-template-columns: 1fr; }
+    .login-box { padding: 32px 24px; width: 100%; margin: 16px; }
+  }
+
+  .required { color: var(--danger); }
+
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 20px 0;
+  }
+
+  .tag-station {
+    display: inline-block;
+    background: rgba(240,165,0,0.1);
+    color: var(--accent);
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  input[type="number"]::-webkit-inner-spin-button { opacity: 1; }
+
+  .note-field { min-height: 80px; resize: vertical; }
+
+  /* ─── GRAPHIQUES ─── */
+  .chart-wrap {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    padding: 16px;
+    margin-bottom: 20px;
+    position: relative;
+  }
+  .chart-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 15px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+  canvas { max-width: 100%; }
+
+  /* ─── ALERTES STOCK ─── */
+  .alert-stock {
+    background: rgba(231,76,60,0.1);
+    border: 1px solid var(--danger);
+    border-left: 4px solid var(--danger);
+    padding: 12px 16px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 13px;
+  }
+  .alert-stock-icon { font-size: 20px; flex-shrink: 0; }
+  .alert-stock-text { flex: 1; }
+  .alert-stock-station { font-weight: 700; color: var(--danger); }
+
+  /* ─── STOCK CARDS ─── */
+  .stock-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .stock-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 20px;
+    position: relative;
+  }
+  .stock-card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .stock-card-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 16px;
+    letter-spacing: 2px;
+  }
+  .stock-bar-wrap {
+    height: 8px;
+    background: var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+    margin: 10px 0 6px;
+  }
+  .stock-bar { height: 100%; border-radius: 4px; transition: width 0.5s; }
+  .stock-bar.gasoil { background: var(--gasoil); }
+  .stock-bar.super { background: var(--super); }
+  .stock-bar.low { background: var(--danger); }
+  .stock-level { font-family: 'JetBrains Mono', monospace; font-size: 22px; font-weight: 700; }
+  .stock-level.gasoil { color: var(--gasoil); }
+  .stock-level.super { color: var(--super); }
+  .stock-level.low { color: var(--danger); }
+  .stock-pct { font-size: 11px; color: var(--muted); }
+
+  /* ─── RAPPORT ─── */
+  .rapport-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .rapport-stat {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 16px;
+  }
+  .rapport-stat-label { font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+  .rapport-stat-value { font-family: 'JetBrains Mono', monospace; font-size: 22px; font-weight: 700; }
+  .rapport-stat-unit { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  /* ─── PRIX ─── */
+  .prix-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(240,165,0,0.1);
+    border: 1px solid rgba(240,165,0,0.3);
+    padding: 4px 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--accent);
+  }
+
+  /* ─── NOTIFICATIONS ─── */
+  .notif-dot {
+    width: 8px; height: 8px;
+    background: var(--danger);
+    border-radius: 50%;
+    display: inline-block;
+    margin-left: 4px;
+    animation: pulse 1.5s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+  .notif-banner {
+    position: fixed;
+    top: 70px;
+    right: 16px;
+    background: var(--surface);
+    border: 1px solid var(--border2);
+    border-left: 4px solid var(--accent);
+    padding: 12px 16px;
+    max-width: 320px;
+    z-index: 9999;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    animation: slideIn 0.3s ease;
+    font-size: 13px;
+  }
+  @keyframes slideIn {
+    from { transform: translateX(120%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+  .notif-title { font-family: 'Bebas Neue', sans-serif; font-size: 14px; letter-spacing: 2px; color: var(--accent); margin-bottom: 4px; }
+
+  /* ─── LANGUE ─── */
+  .lang-btn {
+    background: none;
+    border: 1px solid var(--border2);
+    color: var(--muted);
+    padding: 4px 10px;
+    cursor: pointer;
+    font-size: 11px;
+    letter-spacing: 1px;
+    transition: all 0.2s;
+  }
+  .lang-btn.active { border-color: var(--accent); color: var(--accent); }
+  .lang-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ─── PWA INSTALL BANNER ─── */
+  #pwa-banner {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--surface);
+    border-top: 3px solid var(--accent);
+    padding: 16px 20px;
+    display: none;
+    align-items: center;
+    gap: 16px;
+    z-index: 9999;
+    box-shadow: 0 -8px 32px rgba(0,0,0,0.5);
+    animation: slideUp 0.4s ease;
+  }
+
+  @keyframes slideUp {
+    from { transform: translateY(100%); opacity: 0; }
+    to   { transform: translateY(0);   opacity: 1; }
+  }
+
+  #pwa-banner.show { display: flex; }
+
+  .pwa-banner-icon { font-size: 32px; flex-shrink: 0; }
+
+  .pwa-banner-text { flex: 1; }
+  .pwa-banner-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 16px;
+    letter-spacing: 2px;
+    color: var(--accent);
+  }
+  .pwa-banner-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  .pwa-banner-actions { display: flex; gap: 10px; flex-shrink: 0; }
+
+  .btn-install {
+    background: var(--accent);
+    color: #000;
+    border: none;
+    padding: 10px 20px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 14px;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .btn-install:hover { background: #ffc020; }
+
+  .btn-dismiss {
+    background: transparent;
+    border: 1px solid var(--border2);
+    color: var(--muted);
+    padding: 10px 14px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s;
+  }
+  .btn-dismiss:hover { border-color: var(--danger); color: var(--danger); }
+
+  /* ─── PWA OFFLINE INDICATOR ─── */
+  #offline-indicator {
+    position: fixed;
+    top: 60px;
+    left: 0;
+    right: 0;
+    background: var(--warning);
+    color: #000;
+    text-align: center;
+    padding: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    z-index: 9998;
+    display: none;
+  }
+  #offline-indicator.show { display: block; }
+
+  /* ─── JAUGEAGE CUVES ─── */
+  .cuve-config-bar {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .cuve-config-btn {
+    padding: 8px 18px;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 13px;
+    letter-spacing: 1.5px;
+    border: 1px solid var(--border2);
+    background: var(--bg);
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .cuve-config-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .cuve-config-btn.active { background: var(--accent); color: #000; border-color: var(--accent); }
+
+  .cuve-section {
+    display: grid;
+    gap: 16px;
+    margin-top: 12px;
+  }
+
+  .cuve-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    padding: 20px;
+    position: relative;
+  }
+
+  .cuve-card.cuve-gasoil { border-left: 3px solid var(--gasoil); }
+  .cuve-card.cuve-super { border-left: 3px solid var(--super); }
+
+  .cuve-card-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 15px;
+    letter-spacing: 2px;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .cuve-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+
+  @media (max-width: 600px) { .cuve-grid { grid-template-columns: 1fr 1fr; } }
+
+  .cuve-field label { font-size: 10px; }
+  .cuve-field input { font-size: 13px; }
+
+  .cuve-result {
+    margin-top: 14px;
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .cuve-result-box {
+    flex: 1;
+    min-width: 130px;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    padding: 10px 14px;
+    text-align: center;
+  }
+
+  .cuve-result-label {
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+
+  .cuve-result-value {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 18px;
+    font-weight: 700;
+  }
+
+  .cuve-result-gasoil { color: var(--gasoil); }
+  .cuve-result-super { color: var(--super); }
+
+  .jauge-bar-wrap {
+    margin-top: 10px;
+    height: 10px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .jauge-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.5s ease;
+  }
+
+  .jauge-bar-gasoil { background: var(--gasoil); }
+  .jauge-bar-super { background: var(--super); }
+
+  .jauge-pct {
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 4px;
+    text-align: right;
+  }
+
+  /* Admin jauge table */
+  .badge-jauge { background: rgba(46,204,113,0.12); color: #2ecc71; }
+
+  .cuve-config-label {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    margin-right: 6px;
+  }
+
+  /* ─── SYNC INDICATOR ─── */
+  .sync-indicator {
+    display: none;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    letter-spacing: 1px;
+    font-weight: 600;
+    text-transform: uppercase;
+    transition: all 0.3s;
+  }
+  .sync-indicator.show { display: inline-block; }
+  .sync-ok, .sync-indicator.sync-ok { background: rgba(46,204,113,0.15); color: #2ecc71; }
+  .sync-sync, .sync-indicator.sync-sync { background: rgba(240,165,0,0.15); color: var(--accent); }
+  .sync-error, .sync-indicator.sync-error { background: rgba(231,76,60,0.15); color: var(--danger); }
+
+
+  /* ─── PRIX / CA ─── */
+  .ca-display {
+    background: linear-gradient(135deg, rgba(240,165,0,0.1), rgba(224,92,0,0.05));
+    border: 1px solid rgba(240,165,0,0.3);
+    padding: 12px 16px;
+    margin-top: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .ca-label { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+  .ca-value { font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 700; color: var(--accent); }
+
+  /* ─── STOCK ─── */
+  .stock-bar-wrap { margin-top: 6px; }
+  .stock-bar-bg { height: 6px; background: var(--border2); border-radius: 3px; overflow: hidden; }
+  .stock-bar-fill { height: 100%; border-radius: 3px; transition: width 0.5s; }
+  .stock-ok { background: var(--success); }
+  .stock-warn { background: var(--warning); }
+  .stock-danger { background: var(--danger); }
+
+  /* ─── ALERTES STOCK ─── */
+  .alert-stock {
+    background: rgba(231,76,60,0.12);
+    border: 1px solid var(--danger);
+    border-left: 4px solid var(--danger);
+    padding: 12px 16px;
+    margin-bottom: 12px;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .alert-stock-warn {
+    background: rgba(243,156,18,0.1);
+    border-color: var(--warning);
+    border-left-color: var(--warning);
+  }
+
+  /* ─── GRAPHIQUES ─── */
+  .chart-container {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  .chart-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 16px;
+    letter-spacing: 2px;
+    margin-bottom: 16px;
+    color: var(--muted);
+  }
+  .chart-canvas { width: 100%; height: 200px; }
+
+  /* ─── RAPPORT ─── */
+  .rapport-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+  .rapport-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 20px;
+  }
+  .rapport-card-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 15px;
+    letter-spacing: 2px;
+    color: var(--accent);
+    margin-bottom: 12px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .rapport-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .rapport-row:last-child { border-bottom: none; }
+  .rapport-label { color: var(--muted); }
+  .rapport-value { font-family: 'JetBrains Mono', monospace; font-weight: 700; }
+  .ecart-pos { color: var(--success); }
+  .ecart-neg { color: var(--danger); }
+
+  /* ─── LANGUE ─── */
+  .lang-btn {
+    padding: 4px 12px;
+    font-size: 11px;
+    letter-spacing: 1px;
+    border: 1px solid var(--border2);
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.2s;
+  }
+  .lang-btn.active { border-color: var(--accent); color: var(--accent); }
+
+  /* ─── PHOTO ─── */
+  .photo-preview {
+    width: 100%;
+    max-height: 200px;
+    object-fit: cover;
+    border: 1px solid var(--border2);
+    margin-top: 8px;
+    display: none;
+  }
+  .photo-preview.show { display: block; }
+
+  /* ─── SEUIL ALERTE ─── */
+  .seuil-input {
+    width: 100px;
+    text-align: center;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* ─── COMPARAISON ─── */
+  .compare-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .compare-bar-label { width: 120px; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .compare-bar-track { flex: 1; height: 20px; background: var(--bg); border: 1px solid var(--border); border-radius: 2px; overflow: hidden; }
+  .compare-bar-fill { height: 100%; transition: width 0.5s; display: flex; align-items: center; justify-content: flex-end; padding-right: 6px; font-size: 10px; font-weight: 700; color: #000; font-family: 'JetBrains Mono', monospace; }
+
+  /* ─── THEME ─── */
+  body.theme-light {
+    --bg: #f5f6fa;
+    --surface: #ffffff;
+    --surface2: #f0f1f5;
+    --border: #e0e3ea;
+    --border2: #cdd1db;
+    --text: #1a1d24;
+    --muted: #6b7280;
+  }
+
+  /* ─── IMPRESSION ─── */
+  @media print {
+    .topbar, .tabs, .filter-bar, .btn, .btn-primary, .btn-secondary,
+    #pwa-banner, #offline-indicator, .page-header button,
+    #gerant-tabs, #admin-tabs { display: none !important; }
+    body { background: #fff !important; color: #000 !important; }
+    .print-header { display: block !important; }
+    .card { border: 1px solid #ccc !important; box-shadow: none !important; }
+    .data-table th { background: #f0f0f0 !important; color: #000 !important; }
+    .data-table td { color: #000 !important; border-bottom: 1px solid #eee !important; }
+    .stat-card { border: 1px solid #ccc !important; }
+    .stat-value { color: #000 !important; }
+    .main-content { padding: 0 !important; }
+  }
+
+  .print-header {
+    display: none;
+    text-align: center;
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+    border-bottom: 2px solid #000;
+  }
+  .print-header h1 { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+  .print-header p { font-size: 12px; color: #666; }
+
+  /* ─── RAPPORT GÉRANT ─── */
+  .gerant-stat-mois {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 16px;
+    text-align: center;
+  }
+  .gerant-stat-label { font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted); margin-bottom: 6px; }
+  .gerant-stat-value { font-family: 'JetBrains Mono', monospace; font-size: 24px; font-weight: 700; }
+  .gerant-stat-unit { font-size: 11px; color: var(--muted); margin-top: 2px; }
+</style>
+</head>
+
+
+<!-- ═══════════════════════════════════════════════════
+     LOGIN
+═══════════════════════════════════════════════════ -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="brand">
+      <span class="brand-icon">⛽</span>
+      <span class="brand-name">Elton GB Contrôle</span>
+      <span class="brand-sub">Gestion des Stations-Service</span>
+    <span style="font-size:10px; color:var(--muted); margin-top:4px; display:block;">v2.0 — Firebase Sync</span>
+    </div>
+    <div class="form-group">
+      <label>Identifiant</label>
+      <input type="text" id="login-user" placeholder="ex: gerant_station1" autocomplete="username">
+    </div>
+    <div class="form-group">
+      <label>Mot de passe</label>
+      <input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <div class="error-msg" id="login-error" data-i18n="msg_connexion_erreur">Identifiant ou mot de passe incorrect.</div>
+    <button class="btn btn-primary" id="btn-login" data-i18n="btn_connexion" style="margin-top:8px;">CONNEXION</button>
+    <p style="text-align:center; font-size:11px; color:var(--muted); margin-top:16px;">
+      <span data-i18n="msg_systeme">Système de gestion carburant — accès restreint</span>
+    </p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     APP
+═══════════════════════════════════════════════════ -->
+<div id="app">
+  <div class="topbar">
+    <div class="topbar-brand">⛽ ELTON GB</div>
+    <div id="sync-indicator" class="sync-indicator"></div>
+    <div class="topbar-right">
+      <div class="user-badge">
+        <div class="user-avatar" id="user-avatar-top">A</div>
+        <div>
+          <div style="font-size:13px; font-weight:600;" id="user-name-top">Admin</div>
+          <div class="user-role" id="user-role-top">Administrateur</div>
+        </div>
+      </div>
+      <button class="lang-btn active" id="btn-lang-fr" onclick="setLang('fr')">FR</button>
+      <button class="lang-btn" id="btn-lang-pt" onclick="setLang('pt')">PT</button>
+      <button class="btn-logout" style="font-size:18px; background:none; border:none; cursor:pointer; padding:4px 8px;" onclick="toggleTheme()" title="Changer thème">🌙</button>
+      <button class="btn-logout" data-i18n="btn_deconnexion" onclick="doLogout()">✕ Déconnexion</button>
+    </div>
+  </div>
+
+  <div class="main-content">
+
+    <!-- ADMIN TABS -->
+    <div id="admin-tabs" class="tabs" style="display:none;">
+      <button class="tab active" onclick="switchTab('dashboard','admin')">📊 Dashboard</button>
+      <button class="tab" onclick="switchTab('all-data','admin')">📋 Relevés</button>
+      <button class="tab" onclick="switchTab('stocks','admin')">📦 Stocks</button>
+      <button class="tab" onclick="switchTab('rapports','admin')">📈 Rapports</button>
+      <button class="tab" onclick="switchTab('jaugeage-admin','admin')">🛢️ Jaugeages</button>
+      <button class="tab" onclick="switchTab('stations','admin')">⛽ Stations</button>
+      <button class="tab" onclick="switchTab('accounts','admin')">👥 Gérants</button>
+    </div>
+
+    <!-- GERANT TABS -->
+    <div id="gerant-tabs" class="tabs" style="display:none;">
+      <button class="tab active" onclick="switchTab('saisie','gerant')">✏️ Saisie du jour</button>
+      <button class="tab" onclick="switchTab('jaugeage','gerant')">🛢️ Jaugeage Cuves</button>
+      <button class="tab" onclick="switchTab('historique','gerant')">📋 Historique</button>
+      <button class="tab" onclick="switchTab('rapports-gerant','gerant')">📈 Rapports</button>
+    </div>
+
+    <!-- ── ADMIN: DASHBOARD ── -->
+    <div id="tab-dashboard" class="tab-content active">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Tableau de bord</div>
+          <div class="page-subtitle" id="dashboard-date"></div>
+        </div>
+        <select id="dash-filter-station" style="width:220px;" onchange="renderDashboard()">
+          <option value="">Toutes les stations</option>
+        </select>
+      </div>
+
+      <div id="alert-dash" class="alert"></div>
+
+      <div class="stats-grid" id="stats-grid">
+        <div class="stat-card s-gasoil">
+          <div class="stat-label">Vente Gasoil — Aujourd'hui</div>
+          <div class="stat-value mono" id="stat-gasoil">—</div>
+          <div class="stat-unit">litres</div>
+        </div>
+        <div class="stat-card s-super">
+          <div class="stat-label">Vente Super — Aujourd'hui</div>
+          <div class="stat-value mono" id="stat-super">—</div>
+          <div class="stat-unit">litres</div>
+        </div>
+        <div class="stat-card s-accent">
+          <div class="stat-label">Stations actives</div>
+          <div class="stat-value mono" id="stat-stations">—</div>
+          <div class="stat-unit">ayant saisi aujourd'hui</div>
+        </div>
+        <div class="stat-card s-success">
+          <div class="stat-label">Réceptions du mois</div>
+          <div class="stat-value mono" id="stat-receptions">—</div>
+          <div class="stat-unit">livraisons enregistrées</div>
+        </div>
+      </div>
+
+      <div class="section-title">Derniers relevés reçus</div>
+      <div class="card" style="padding:0; overflow-x:auto; -webkit-overflow-scrolling:touch;">
+        <table class="data-table" id="table-recent">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Station</th>
+              <th>Gasoil Vendu</th>
+              <th>Super Vendu</th>
+              <th>Note</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-recent"></tbody>
+        </table>
+      </div>
+
+      <div class="section-title" style="margin-top:28px;">Réceptions récentes</div>
+      <div class="card" style="padding:0; overflow-x:auto; -webkit-overflow-scrolling:touch;">
+        <table class="data-table" id="table-recent-recv">
+          <thead>
+            <tr>
+              <th>Date livraison</th>
+              <th>Station</th>
+              <th>Produit</th>
+              <th>Quantité (L)</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-recent-recv"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── ADMIN: ALL DATA ── -->
+    <div id="tab-all-data" class="tab-content">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Tous les Relevés</div>
+          <div class="page-subtitle">Historique complet des saisies</div>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="exportData()">⬇ Exporter CSV</button>
+      </div>
+
+      <div class="filter-bar">
+        <select id="filter-station-all" onchange="renderAllData()">
+          <option value="">Toutes les stations</option>
+        </select>
+        <input type="date" id="filter-date-from" onchange="renderAllData()" placeholder="Du">
+        <input type="date" id="filter-date-to" onchange="renderAllData()" placeholder="Au">
+        <button class="btn btn-secondary btn-sm" onclick="clearFilters()">Effacer filtres</button>
+      </div>
+
+      <div class="card" style="padding:0; overflow-x:auto; -webkit-overflow-scrolling:touch;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Station</th>
+              <th>Gasoil — Ouv.</th>
+              <th>Gasoil — Ferm.</th>
+              <th>Gasoil Vendu</th>
+              <th>Super — Ouv.</th>
+              <th>Super — Ferm.</th>
+              <th>Super Vendu</th>
+              <th>Note</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-all"></tbody>
+        </table>
+      </div>
+
+      <div style="margin-top:28px;" class="section-title">Réceptions</div>
+      <div class="card" style="padding:0; overflow-x:auto; -webkit-overflow-scrolling:touch;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Date livraison</th>
+              <th>Station</th>
+              <th>Produit</th>
+              <th>Quantité (L)</th>
+              <th>Référence BL</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-all-recv"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── ADMIN: STATIONS ── -->
+    <div id="tab-stations" class="tab-content">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Gestion des Stations</div>
+          <div class="page-subtitle">Créer et gérer les stations-service</div>
+        </div>
+        <button class="btn btn-primary btn-sm" data-i18n="btn_nouvelle_station" onclick="openModalStation()">+ Nouvelle station</button>
+      </div>
+
+      <div id="alert-stations" class="alert"></div>
+
+      <div class="card" style="padding:0; overflow-x:auto; -webkit-overflow-scrolling:touch;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Nom de la station</th>
+              <th>Ville / Lieu</th>
+              <th>Gérant assigné</th>
+              <th>Statut</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-stations"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── ADMIN: ACCOUNTS (Gérants) ── -->
+    <div id="tab-accounts" class="tab-content">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Gestion des Gérants</div>
+          <div class="page-subtitle">Comptes utilisateurs et accès aux stations</div>
+        </div>
+        <button class="btn btn-primary btn-sm" data-i18n="btn_nouveau_gerant" onclick="openModalNewAccount()">+ Nouveau gérant</button>
+      </div>
+
+      <div id="alert-accounts" class="alert"></div>
+
+      <div class="card" style="padding:0; overflow-x:auto; -webkit-overflow-scrolling:touch;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Identifiant</th>
+              <th>Nom complet</th>
+              <th>Station</th>
+              <th>Rôle</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-accounts"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── GERANT: SAISIE ── -->
+    <div id="tab-saisie" class="tab-content">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Saisie du Jour</div>
+          <div class="page-subtitle" id="gerant-station-name">Station</div>
+        </div>
+      </div>
+
+      <div id="alert-saisie" class="alert"></div>
+
+      <div class="date-strip">
+        <span class="date-icon">📅</span>
+        <span class="date-text" id="saisie-date-display"></span>
+        <input type="date" id="saisie-date" onchange="checkExistingReleve()" style="width:auto; flex:none; border:none; background:transparent; color:var(--accent); font-family:'JetBrains Mono',monospace; font-size:13px; padding:0; margin-left:auto; cursor:pointer;">
+      </div>
+
+      <div id="warning-existing" class="alert alert-warning">⚠️ Un relevé existe déjà pour cette date. La soumission écrasera les données existantes.</div>
+
+      <!-- GASOIL -->
+      <div class="product-section product-gasoil">
+        <span class="product-label">🔵 GASOIL</span>
+        <div class="index-grid" style="margin-top:12px;">
+          <div class="index-item">
+            <label>Index Ouverture — Pompe 1</label>
+            <input type="number" id="gasoil-ouv1" step="0.01" min="0" placeholder="0.00" oninput="calcVente('gasoil')">
+          </div>
+          <div class="index-item">
+            <label>Index Fermeture — Pompe 1</label>
+            <input type="number" id="gasoil-ferm1" step="0.01" min="0" placeholder="0.00" oninput="calcVente('gasoil')">
+          </div>
+          <div class="index-item">
+            <label>Index Ouverture — Pompe 2</label>
+            <input type="number" id="gasoil-ouv2" step="0.01" min="0" placeholder="0.00" oninput="calcVente('gasoil')">
+          </div>
+          <div class="index-item">
+            <label>Index Fermeture — Pompe 2</label>
+            <input type="number" id="gasoil-ferm2" step="0.01" min="0" placeholder="0.00" oninput="calcVente('gasoil')">
+          </div>
+        </div>
+        <!-- Retour en cuve Gasoil -->
+        <div style="margin-top:12px; background:var(--bg); border:1px dashed var(--border2); padding:14px 16px; display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+          <div style="flex:1; min-width:180px;">
+            <label style="font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); display:block; margin-bottom:6px;">↩ Retour en cuve Gasoil (L)</label>
+            <input type="number" id="gasoil-retour" step="0.01" min="0" placeholder="0.00" oninput="calcVente('gasoil')"
+              style="background:var(--surface2); border:1px solid rgba(59,158,255,0.4); color:var(--gasoil); font-family:'JetBrains Mono',monospace; font-size:15px; padding:10px 14px; width:100%; outline:none;">
+          </div>
+          <div style="font-size:11px; color:var(--muted); line-height:1.6; flex:2; min-width:200px;">
+            <span style="color:var(--text);">Formule :</span> Vente = (Index Ferm. − Index Ouv.) − Retour en cuve
+          </div>
+        </div>
+        <div class="vente-display">
+          <span class="vente-label">🟦 Vente journalière Gasoil</span>
+          <span class="vente-value vente-gasoil mono" id="vente-gasoil">0.00 L</span>
+        </div>
+        <div id="ca-gasoil-display" style="display:none; text-align:right; padding:4px 16px; font-size:11px; color:var(--muted);">
+          CA: <span id="ca-gasoil" style="color:var(--accent); font-family:'JetBrains Mono',monospace; font-weight:700;"></span> GNF
+        </div>
+      </div>
+
+      <!-- SUPER -->
+      <div class="product-section product-super">
+        <span class="product-label">🔴 SUPER</span>
+        <div class="index-grid" style="margin-top:12px;">
+          <div class="index-item">
+            <label>Index Ouverture — Pompe 1</label>
+            <input type="number" id="super-ouv1" step="0.01" min="0" placeholder="0.00" oninput="calcVente('super')">
+          </div>
+          <div class="index-item">
+            <label>Index Fermeture — Pompe 1</label>
+            <input type="number" id="super-ferm1" step="0.01" min="0" placeholder="0.00" oninput="calcVente('super')">
+          </div>
+          <div class="index-item">
+            <label>Index Ouverture — Pompe 2</label>
+            <input type="number" id="super-ouv2" step="0.01" min="0" placeholder="0.00" oninput="calcVente('super')">
+          </div>
+          <div class="index-item">
+            <label>Index Fermeture — Pompe 2</label>
+            <input type="number" id="super-ferm2" step="0.01" min="0" placeholder="0.00" oninput="calcVente('super')">
+          </div>
+        </div>
+        <!-- Retour en cuve Super -->
+        <div style="margin-top:12px; background:var(--bg); border:1px dashed var(--border2); padding:14px 16px; display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+          <div style="flex:1; min-width:180px;">
+            <label style="font-size:10px; letter-spacing:1.5px; text-transform:uppercase; color:var(--muted); display:block; margin-bottom:6px;">↩ Retour en cuve Super (L)</label>
+            <input type="number" id="super-retour" step="0.01" min="0" placeholder="0.00" oninput="calcVente('super')"
+              style="background:var(--surface2); border:1px solid rgba(255,90,90,0.4); color:var(--super); font-family:'JetBrains Mono',monospace; font-size:15px; padding:10px 14px; width:100%; outline:none;">
+          </div>
+          <div style="font-size:11px; color:var(--muted); line-height:1.6; flex:2; min-width:200px;">
+            <span style="color:var(--text);">Formule :</span> Vente = (Index Ferm. − Index Ouv.) − Retour en cuve
+          </div>
+        </div>
+        <div class="vente-display">
+          <span class="vente-label">🟥 Vente journalière Super</span>
+          <span class="vente-value vente-super mono" id="vente-super">0.00 L</span>
+        </div>
+        <div id="ca-super-display" style="display:none; text-align:right; padding:4px 16px; font-size:11px; color:var(--muted);">
+          CA: <span id="ca-super" style="color:var(--accent); font-family:'JetBrains Mono',monospace; font-weight:700;"></span> GNF
+        </div>
+      </div>
+
+      <!-- RECEPTIONS -->
+      <div class="section-title" style="margin-top:24px;">Réceptions de produit</div>
+      <div id="receptions-container"></div>
+      <button class="btn btn-secondary btn-sm" data-i18n="btn_ajouter_reception" onclick="addReception()" style="margin-bottom:20px;">+ Ajouter une réception</button>
+
+      <!-- PRIX DE VENTE -->
+      <div class="section-title" style="margin-top:24px;">Prix de vente</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Prix Gasoil (FCFA/L)</label>
+          <input type="number" id="prix-gasoil" min="0" step="1" placeholder="ex: 650" oninput="calcCA()" style="font-family:'JetBrains Mono',monospace;">
+        </div>
+        <div class="form-group">
+          <label>Prix Super (FCFA/L)</label>
+          <input type="number" id="prix-super" min="0" step="1" placeholder="ex: 750" oninput="calcCA()" style="font-family:'JetBrains Mono',monospace;">
+        </div>
+      </div>
+      <div class="ca-display">
+        <span class="ca-label">💰 Chiffre d'affaires estimé</span>
+        <span class="ca-value mono" id="ca-total">— FCFA</span>
+      </div>
+
+      <!-- PHOTO COMPTEURS -->
+      <div class="section-title" style="margin-top:24px;">Photo des compteurs</div>
+      <div class="form-group">
+        <label>Prendre une photo (optionnel)</label>
+        <input type="file" id="photo-input" accept="image/*" capture="environment" onchange="previewPhoto()" style="padding:8px;">
+        <img id="photo-preview" class="photo-preview" alt="Photo compteur">
+      </div>
+
+      <!-- NOTE -->
+      <div class="form-group">
+        <label>Note / Observation</label>
+        <textarea id="saisie-note" class="note-field" placeholder="Observations, incidents, remarques..."></textarea>
+      </div>
+
+      <button class="btn btn-primary" onclick="submitReleve()" data-i18n="btn_soumettre" style="width:100%; font-size:18px; padding:18px;">📤 SOUMETTRE LE RELEVÉ</button>
+    </div>
+
+    <!-- ── GERANT: HISTORIQUE ── -->
+    <div id="tab-historique" class="tab-content">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Mon Historique</div>
+          <div class="page-subtitle" id="hist-station-name"></div>
+        </div>
+      </div>
+
+      <div class="filter-bar">
+        <input type="date" id="hist-date-from" onchange="renderHistorique()">
+        <input type="date" id="hist-date-to" onchange="renderHistorique()">
+      </div>
+
+      <div class="card" style="padding:0; overflow-x:auto; -webkit-overflow-scrolling:touch;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Gasoil Vendu</th>
+              <th>Super Vendu</th>
+              <th>Réceptions</th>
+              <th>Note</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-historique"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── GERANT: RAPPORTS ── -->
+    <div id="tab-rapports-gerant" class="tab-content">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Mes Rapports</div>
+          <div class="page-subtitle" id="rapport-gerant-station"></div>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+          <select id="gerant-rapport-mois" onchange="renderRapportsGerant()" style="width:auto;"></select>
+          <button class="btn btn-secondary btn-sm" data-i18n="btn_imprimer" onclick="printRapportJournalier()">🖨️ Imprimer</button>
+          <button class="btn btn-secondary btn-sm" data-i18n="btn_pdf" onclick="exportRapportGerantPDF()">📄 PDF</button>
+        </div>
+      </div>
+
+      <!-- Stats du mois -->
+      <div class="stats-grid" id="gerant-stats-mois"></div>
+
+      <!-- Graphique semaine -->
+      <div class="chart-container">
+        <div class="chart-title">📈 VENTES PAR SEMAINE</div>
+        <canvas id="chart-gerant-semaine" class="chart-canvas"></canvas>
+      </div>
+
+      <!-- Rapport mensuel détaillé -->
+      <div class="section-title">Détail du mois</div>
+      <div class="card" style="padding:0; overflow-x:auto;">
+        <table class="data-table" id="table-rapport-gerant">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Gasoil Vendu (L)</th>
+              <th>Retour G. (L)</th>
+              <th>Super Vendu (L)</th>
+              <th>Retour S. (L)</th>
+              <th>Réceptions (L)</th>
+              <th>Note</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-rapport-gerant"></tbody>
+          <tfoot id="tfoot-rapport-gerant" style="font-weight:700; background:var(--surface2);"></tfoot>
+        </table>
+      </div>
+
+      <!-- Zone d'impression -->
+      <div id="print-zone" style="display:none;"></div>
+    </div>
+
+    <!-- ── GERANT: JAUGEAGE CUVES ── -->
+    <div id="tab-jaugeage" class="tab-content">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Jaugeage des Cuves</div>
+          <div class="page-subtitle" id="jauge-station-name">Station</div>
+        </div>
+      </div>
+
+      <div id="alert-jaugeage" class="alert"></div>
+
+      <!-- Date -->
+      <div class="date-strip">
+        <span class="date-icon">📅</span>
+        <span class="date-text" id="jauge-date-display"></span>
+        <input type="date" id="jauge-date" onchange="onJaugeDateChange()" style="width:auto; flex:none; border:none; background:transparent; color:var(--accent); font-family:'JetBrains Mono',monospace; font-size:13px; padding:0; margin-left:auto; cursor:pointer;">
+      </div>
+
+      <!-- Lecture cuves directe -->
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+        <div class="form-group" style="margin:0;">
+          <label style="color:var(--gasoil); font-size:11px; text-transform:uppercase; letter-spacing:1.5px;">🔵 Cuve Gasoil (L)</label>
+          <input type="number" id="jauge-gasoil-litres" min="0" step="1" placeholder="ex: 15000"
+            style="font-family:'JetBrains Mono',monospace; font-size:20px; font-weight:700; color:var(--gasoil); border-color:rgba(59,158,255,0.4); padding:14px;">
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label style="color:var(--super); font-size:11px; text-transform:uppercase; letter-spacing:1.5px;">🔴 Cuve Super (L)</label>
+          <input type="number" id="jauge-super-litres" min="0" step="1" placeholder="ex: 8000"
+            style="font-family:'JetBrains Mono',monospace; font-size:20px; font-weight:700; color:var(--super); border-color:rgba(255,90,90,0.4); padding:14px;">
+        </div>
+      </div>
+
+      <!-- Heure et operateur -->
+      <div class="form-row" style="margin-top:16px;">
+        <div class="form-group">
+          <label>Heure du jaugeage</label>
+          <input type="time" id="jauge-heure" value="08:00">
+        </div>
+        <div class="form-group">
+          <label>Gérant</label>
+          <input type="text" id="jauge-operateur" readonly style="opacity:0.6;">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Observation</label>
+        <textarea id="jauge-note" class="note-field" placeholder="Anomalie, fuite, niveau critique..."></textarea>
+      </div>
+
+      <button class="btn btn-primary" onclick="submitJaugeage()" data-i18n="btn_enregistrer_jauge" style="width:100%; font-size:18px; padding:18px;">📊 ENREGISTRER LE JAUGEAGE</button>
+    </div>
+
+    <!-- ── ADMIN: JAUGEAGES ── -->
+    <div id="tab-jaugeage-admin" class="tab-content">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Jaugeages des Cuves</div>
+          <div class="page-subtitle">Niveaux enregistrés par station</div>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="exportJaugeages()">⬇ Exporter CSV</button>
+      </div>
+
+      <div class="filter-bar">
+        <select id="filter-jauge-station" onchange="renderJaugeAdmin()">
+          <option value="">Toutes les stations</option>
+        </select>
+        <input type="date" id="filter-jauge-from" onchange="renderJaugeAdmin()">
+        <input type="date" id="filter-jauge-to" onchange="renderJaugeAdmin()">
+        <button class="btn btn-secondary btn-sm" onclick="clearJaugeFilters()">Effacer</button>
+      </div>
+
+      <div class="card" style="padding:0; overflow-x:auto; -webkit-overflow-scrolling:touch;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Heure</th>
+              <th>Station</th>
+              <th>Config.</th>
+              <th>Gasoil C1 (L)</th>
+              <th>Gasoil C2 (L)</th>
+              <th>Super C1 (L)</th>
+              <th>Super C2 (L)</th>
+              <th>Observation</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-jaugeage-admin"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+    <!-- ── ADMIN: STOCKS ── -->
+    <div id="tab-stocks" class="tab-content">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Stocks & Alertes</div>
+          <div class="page-subtitle">Niveaux de stock théoriques par station</div>
+        </div>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <label style="font-size:11px; color:var(--muted);">Seuil alerte (L)</label>
+          <input type="number" id="seuil-global" class="seuil-input" value="2000" min="0" step="100" onchange="renderStocks()">
+          <button class="btn btn-secondary btn-sm" onclick="renderStocks()">🔄 Actualiser</button>
+        </div>
+      </div>
+      <div id="alertes-container"></div>
+      <div id="stocks-container"></div>
+    </div>
+
+    <!-- ── ADMIN: RAPPORTS ── -->
+    <div id="tab-rapports" class="tab-content">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Rapports & Analyses</div>
+          <div class="page-subtitle">Statistiques mensuelles et comparaisons</div>
+        </div>
+        <div style="display:flex; gap:10px; align-items:center;">
+          <select id="rapport-mois" onchange="renderRapports()" style="width:auto;">
+          </select>
+          <button class="btn btn-secondary btn-sm" onclick="exportRapport()">⬇ Export CSV</button>
+        </div>
+      </div>
+
+      <!-- Graphiques -->
+      <div class="chart-container">
+        <div class="chart-title">📈 VENTES JOURNALIÈRES — GASOIL vs SUPER</div>
+        <canvas id="chart-ventes" class="chart-canvas"></canvas>
+      </div>
+
+      <!-- Comparaison stations -->
+      <div class="chart-container">
+        <div class="chart-title">⛽ COMPARAISON STATIONS — Ventes du mois</div>
+        <div id="compare-stations"></div>
+      </div>
+
+      <!-- Rapports par station -->
+      <div class="section-title">Rapport détaillé par station</div>
+      <div class="rapport-grid" id="rapport-stations"></div>
+
+      <!-- Écarts stock -->
+      <div class="section-title" style="margin-top:8px;">Écarts stock (Théorique vs Jaugeage)</div>
+      <div class="card" style="padding:0; overflow-x:auto;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Station</th>
+              <th>Produit</th>
+              <th>Stock théorique (L)</th>
+              <th>Dernier jaugeage (L)</th>
+              <th>Écart (L)</th>
+              <th>Statut</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-ecarts"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── ADMIN: RAPPORTS ── -->
+    <div id="tab-rapports" class="tab-content">
+      <div class="page-header">
+        <div>
+          <div class="page-title" data-fr="Rapports Mensuels" data-pt="Relatórios Mensais">Rapports Mensuels</div>
+          <div class="page-subtitle">Analyses et statistiques par période</div>
+        </div>
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+          <select id="rapport-station" onchange="renderRapports()" style="width:auto;">
+            <option value="">Toutes les stations</option>
+          </select>
+          <select id="rapport-mois" onchange="renderRapports()" style="width:auto;"></select>
+          <button class="btn btn-secondary btn-sm" onclick="exportRapport()">⬇ CSV</button>
+        </div>
+      </div>
+
+      <div class="rapport-grid" id="rapport-stats"></div>
+
+      <div class="section-title">Évolution des ventes</div>
+      <div class="chart-wrap">
+        <div class="chart-title">VENTES JOURNALIÈRES — LITRES</div>
+        <canvas id="chart-ventes" height="120"></canvas>
+      </div>
+
+      <div class="section-title" style="margin-top:20px;">Détail par station</div>
+      <div class="card" style="padding:0; overflow-x:auto;">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Station</th>
+              <th>Jours saisis</th>
+              <th>Total Gasoil</th>
+              <th>Total Super</th>
+              <th>CA Gasoil (GNF)</th>
+              <th>CA Super (GNF)</th>
+              <th>CA Total</th>
+            </tr>
+          </thead>
+          <tbody id="tbody-rapport"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── ADMIN: STOCKS ── -->
+    <div id="tab-stocks" class="tab-content">
+      <div class="page-header">
+        <div>
+          <div class="page-title">Stocks & Alertes</div>
+          <div class="page-subtitle">Niveaux de stock théoriques par station</div>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="renderStocks()">🔄 Actualiser</button>
+      </div>
+
+      <!-- Alertes niveau bas -->
+      <div id="alertes-stock"></div>
+
+      <!-- Prix de vente -->
+      <div class="card" style="margin-bottom:20px;">
+        <div class="card-header">
+          <div class="card-title">💰 Prix de vente au litre</div>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+          <div class="form-group" style="margin:0;">
+            <label>Prix Gasoil (GNF/L)</label>
+            <input type="number" id="prix-gasoil" min="0" step="1" placeholder="ex: 12000" oninput="savePrix()" 
+              style="color:var(--gasoil); font-family:'JetBrains Mono',monospace; font-weight:700;">
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label>Prix Super (GNF/L)</label>
+            <input type="number" id="prix-super" min="0" step="1" placeholder="ex: 14000" oninput="savePrix()"
+              style="color:var(--super); font-family:'JetBrains Mono',monospace; font-weight:700;">
+          </div>
+        </div>
+        <div style="margin-top:12px; display:flex; gap:16px;">
+          <div class="form-group" style="margin:0; flex:1;">
+            <label>Seuil alerte Gasoil (L)</label>
+            <input type="number" id="seuil-gasoil" min="0" step="100" placeholder="ex: 5000" oninput="savePrix()">
+          </div>
+          <div class="form-group" style="margin:0; flex:1;">
+            <label>Seuil alerte Super (L)</label>
+            <input type="number" id="seuil-super" min="0" step="100" placeholder="ex: 3000" oninput="savePrix()">
+          </div>
+        </div>
+      </div>
+
+      <!-- Stocks par station -->
+      <div class="section-title">Stock théorique par station</div>
+      <div class="stock-grid" id="stock-grid"></div>
+    </div>
+
+<!-- ══════════════════════════════
+     MODAL — NOUVELLE STATION
+══════════════════════════════ -->
+<div class="modal-overlay" id="modal-station">
+  <div class="modal">
+    <div class="modal-title" id="modal-station-title">Nouvelle station</div>
+    <div id="alert-modal-station" class="alert"></div>
+
+    <div class="form-group">
+      <label>Nom de la station <span class="required">*</span></label>
+      <input type="text" id="st-nom" placeholder="ex: Station Total Aéroport">
+    </div>
+    <div class="form-group">
+      <label>Ville / Lieu <span class="required">*</span></label>
+      <input type="text" id="st-ville" placeholder="ex: Bissau, Bafatá...">
+    </div>
+    <div class="form-group">
+      <label>Statut</label>
+      <select id="st-statut">
+        <option value="active">Active</option>
+        <option value="inactive">Inactive</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="saveStation()">ENREGISTRER</button>
+      <button class="btn btn-secondary" onclick="closeModal('modal-station')">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════
+     MODAL — NOUVEAU COMPTE
+══════════════════════════════ -->
+<div class="modal-overlay" id="modal-account">
+  <div class="modal">
+    <div class="modal-title" id="modal-account-title">Nouveau compte gérant</div>
+    <div id="alert-modal" class="alert"></div>
+
+    <div class="form-group">
+      <label>Nom complet <span class="required">*</span></label>
+      <input type="text" id="acc-name" placeholder="Prénom Nom">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Identifiant <span class="required">*</span></label>
+        <input type="text" id="acc-user" placeholder="identifiant_unique">
+      </div>
+      <div class="form-group">
+        <label>Mot de passe <span class="required">*</span></label>
+        <input type="password" id="acc-pass" placeholder="Minimum 6 caractères">
+      </div>
+    </div>
+    <div class="form-group" id="acc-station-group">
+      <label>Station assignée <span class="required">*</span></label>
+      <select id="acc-station-sel">
+        <option value="">-- Choisir une station --</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Rôle</label>
+      <select id="acc-role" onchange="toggleStationField()">
+        <option value="gerant">Gérant de station</option>
+        <option value="admin">Administrateur</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="saveAccount()">ENREGISTRER</button>
+      <button class="btn btn-secondary" onclick="closeModal('modal-account')">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════
+     MODAL — RESET PASSWORD
+══════════════════════════════ -->
+<div class="modal-overlay" id="modal-reset">
+  <div class="modal">
+    <div class="modal-title">Modifier le mot de passe</div>
+    <div id="alert-reset" class="alert"></div>
+    <p style="color:var(--muted); font-size:13px; margin-bottom:20px;">
+      Compte : <strong id="reset-username-display" style="color:var(--text);"></strong>
+    </p>
+    <div class="form-group">
+      <label>Nouveau mot de passe <span class="required">*</span></label>
+      <input type="password" id="reset-pass" placeholder="Minimum 6 caractères">
+    </div>
+    <div class="form-group">
+      <label>Confirmer <span class="required">*</span></label>
+      <input type="password" id="reset-pass2" placeholder="Répéter le mot de passe">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="doResetPassword()">CHANGER LE MOT DE PASSE</button>
+      <button class="btn btn-secondary" onclick="closeModal('modal-reset')">Annuler</button>
+    </div>
+  </div>
+</div>
+
+
+<script>
+// ═══════════════════════════════════════════════
+// COUCHE DONNÉES — Firebase Firestore compat + Cache local
+// ═══════════════════════════════════════════════
+
+const localCache = {
+  get: (key) => { try { return JSON.parse(localStorage.getItem('elton_cache_' + key) || 'null'); } catch { return null; } },
+  set: (key, val) => { try { localStorage.setItem('elton_cache_' + key, JSON.stringify(val)); } catch {} },
+};
+
+const DB = {
+  get: (key) => localCache.get(key),
+  set: (key, val) => localCache.set(key, val),
+};
+
+// ── Helpers Firestore (mode compat) ───────────────────────
+async function fsGetAll(collName) {
+  if (!window.fbReady) return localCache.get(collName) || [];
+  try {
+    const snap = await fbDB.collection(collName).get();
+    const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    localCache.set(collName, items);
+    return items;
+  } catch (e) {
+    console.warn('[DB] fsGetAll erreur, fallback local:', e.message);
+    return localCache.get(collName) || [];
+  }
+}
+
+async function fsSave(collName, item) {
+  // Sauvegarde locale immédiate
+  const items = localCache.get(collName) || [];
+  const idx = items.findIndex(i => i.id === item.id);
+  if (idx >= 0) items[idx] = item; else items.push(item);
+  localCache.set(collName, items);
+  // Sauvegarde Firebase
+  if (!window.fbReady) return;
+  try {
+    await fbDB.collection(collName).doc(item.id).set(item);
+  } catch (e) {
+    console.warn('[DB] fsSave erreur:', e.message);
+  }
+}
+
+async function fsDelete(collName, id) {
+  let items = localCache.get(collName) || [];
+  items = items.filter(i => i.id !== id);
+  localCache.set(collName, items);
+  if (!window.fbReady) return;
+  try {
+    await fbDB.collection(collName).doc(id).delete();
+  } catch (e) {
+    console.warn('[DB] fsDelete erreur:', e.message);
+  }
+}
+
+// ── Listeners temps réel ───────────────────────────────────
+const unsubscribers = {};
+
+function listenCollection(collName, callback) {
+  if (!window.fbReady) return;
+  if (unsubscribers[collName]) unsubscribers[collName]();
+  unsubscribers[collName] = fbDB.collection(collName).onSnapshot(
+    (snap) => {
+      const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      localCache.set(collName, items);
+      if (callback) callback(items);
+    },
+    (err) => console.warn('[DB] Listener erreur:', collName, err.message)
+  );
+}
+
+function stopAllListeners() {
+  Object.values(unsubscribers).forEach(fn => { try { fn(); } catch {} });
+  Object.keys(unsubscribers).forEach(k => delete unsubscribers[k]);
+}
+
+// ── Sync initiale ──────────────────────────────────────────
+async function syncFromFirebase() {
+  if (!window.fbReady) return;
+  showSyncStatus('sync');
+  try {
+    await Promise.all([
+      fsGetAll('users'),
+      fsGetAll('stations'),
+      fsGetAll('releves'),
+      fsGetAll('receptions'),
+      fsGetAll('jaugeages'),
+    ]);
+    showSyncStatus('ok');
+  } catch (e) {
+    showSyncStatus('error');
+  }
+}
+
+function showSyncStatus(state) {
+  const el = document.getElementById('sync-indicator');
+  if (!el) return;
+  el.className = 'sync-indicator show sync-' + state;
+  if (state === 'ok') {
+    el.textContent = '☁ Synchronisé';
+    setTimeout(() => el.classList.remove('show'), 3000);
+  } else if (state === 'sync') {
+    el.textContent = '↻ Sync...';
+  } else {
+    el.textContent = '⚠ Hors-ligne';
+    setTimeout(() => el.classList.remove('show'), 4000);
+  }
+}
+
+// ── Init données par défaut ────────────────────────────────
+async function initData() {
+  await syncFromFirebase();
+  const users = DB.get('users') || [];
+  if (!users.length) {
+    const defaultStations = [
+      { id: 's1', nom: 'Station 1', ville: 'Bissau', statut: 'active' },
+      { id: 's2', nom: 'Station 2', ville: 'Bissau', statut: 'active' },
+    ];
+    const defaultUsers = [
+      { id: 'admin', username: 'admin', password: 'admin123', name: 'Administrateur', role: 'admin', station: 'Siège', stationId: '' },
+    ];
+    for (const st of defaultStations) await fsSave('stations', st);
+    for (const u of defaultUsers) await fsSave('users', u);
+    localCache.set('releves', []);
+    localCache.set('receptions', []);
+    localCache.set('jaugeages', []);
+  }
+  if (!DB.get('stations')) localCache.set('stations', []);
+  if (!DB.get('releves')) localCache.set('releves', []);
+  if (!DB.get('receptions')) localCache.set('receptions', []);
+  if (!DB.get('jaugeages')) localCache.set('jaugeages', []);
+}
+
+// ═══════════════════════════════════════════════
+// SESSION (persistée dans localStorage)
+// ═══════════════════════════════════════════════
+let currentUser = null;
+
+function saveSession(user) {
+  localStorage.setItem('elton_session', JSON.stringify({ id: user.id, ts: Date.now() }));
+}
+function clearSession() {
+  localStorage.removeItem('elton_session');
+}
+function restoreSession() {
+  try {
+    const s = JSON.parse(localStorage.getItem('elton_session') || 'null');
+    if (!s) return false;
+    if (Date.now() - s.ts > 24 * 60 * 60 * 1000) { clearSession(); return false; }
+    const users = DB.get('users') || [];
+    const user = users.find(u => u.id === s.id);
+    if (!user) { clearSession(); return false; }
+    currentUser = user;
+    return true;
+  } catch { return false; }
+}
+
+// ═══════════════════════════════════════════════
+// AUTH
+// ═══════════════════════════════════════════════
+window.doLogin = async function doLogin() {
+  const username = document.getElementById('login-user').value.trim();
+  const password = document.getElementById('login-pass').value;
+  const btn = document.getElementById('btn-login');
+  if (btn) { btn.textContent = '⏳ Connexion...'; btn.disabled = true; }
+
+  // Essayer Firebase d'abord, puis cache local
+  let users = [];
+  try {
+    users = await fsGetAll('users');
+  } catch(e) {
+    console.warn('[Login] Firebase erreur, utilisation cache local');
+  }
+  
+  // Si toujours vide, utiliser cache local directement
+  if (!users.length) {
+    users = localCache.get('users') || [];
+  }
+  
+  // Si toujours vide, créer le compte admin par défaut
+  if (!users.length) {
+    const adminUser = { id: 'admin', username: 'admin', password: 'admin123', name: 'Administrateur', role: 'admin', station: 'Siège', stationId: '' };
+    await fsSave('users', adminUser);
+    users = [adminUser];
+  }
+
+  const user = users.find(u => u.username === username && u.password === password);
+  if (btn) { btn.textContent = 'CONNEXION'; btn.disabled = false; }
+  
+  if (!user) {
+    document.getElementById('login-error').style.display = 'block';
+    return;
+  }
+  document.getElementById('login-error').style.display = 'none';
+  currentUser = user;
+  saveSession(user);
+  enterApp();
+}
+
+window.doLogout = function doLogout() {
+  stopAllListeners();
+  currentUser = null;
+  clearSession();
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('login-user').value = '';
+  document.getElementById('login-pass').value = '';
+}
+
+// Attacher les events après que le DOM soit prêt
+function attachLoginEvents() {
+  const btnLogin = document.getElementById('btn-login');
+  const loginPass = document.getElementById('login-pass');
+  const loginUser = document.getElementById('login-user');
+  if (btnLogin) btnLogin.addEventListener('click', function() { doLogin(); });
+  if (loginPass) loginPass.addEventListener('keydown', function(e) { if (e.key === 'Enter') doLogin(); });
+  if (loginUser) loginUser.addEventListener('keydown', function(e) { if (e.key === 'Enter') doLogin(); });
+  console.log('[App] Events login attachés:', !!btnLogin);
+}
+
+// ═══════════════════════════════════════════════
+// ENTER APP
+// ═══════════════════════════════════════════════
+function enterApp() {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('user-name-top').textContent = currentUser.name;
+  document.getElementById('user-role-top').textContent = currentUser.role === 'admin' ? 'Administrateur' : 'Gérant — ' + currentUser.station;
+  document.getElementById('user-avatar-top').textContent = currentUser.name.charAt(0).toUpperCase();
+
+  if (currentUser.role === 'admin') {
+    document.getElementById('admin-tabs').style.display = 'flex';
+    document.getElementById('gerant-tabs').style.display = 'none';
+    switchTab('dashboard', 'admin');
+    renderDashboard();
+    renderAccounts();
+    renderStations();
+    renderJaugeAdmin();
+    populateStationFilters();
+    startRealtimeListeners();
+    requestNotifPermission();
+    loadPrix();
+  } else {
+    document.getElementById('gerant-tabs').style.display = 'flex';
+    document.getElementById('admin-tabs').style.display = 'none';
+    document.getElementById('gerant-station-name').textContent = currentUser.station;
+    document.getElementById('hist-station-name').textContent = currentUser.station;
+    switchTab('saisie', 'gerant');
+    initSaisie();
+    renderHistorique();
+  }
+}
+
+// ═══════════════════════════════════════════════
+// LISTENERS TEMPS RÉEL (admin)
+// ═══════════════════════════════════════════════
+function startRealtimeListeners() {
+  if (!window.fbReady || !currentUser || currentUser.role !== 'admin') return;
+  listenCollection('releves', () => {
+    if (document.getElementById('tab-dashboard')?.classList.contains('active')) renderDashboard();
+    if (document.getElementById('tab-all-data')?.classList.contains('active')) renderAllData();
+  });
+  listenCollection('receptions', () => {
+    if (document.getElementById('tab-dashboard')?.classList.contains('active')) renderDashboard();
+    if (document.getElementById('tab-all-data')?.classList.contains('active')) renderAllData();
+  });
+  listenCollection('jaugeages', () => {
+    if (document.getElementById('tab-jaugeage-admin')?.classList.contains('active')) renderJaugeAdmin();
+  });
+  listenCollection('users', () => {
+    if (document.getElementById('tab-accounts')?.classList.contains('active')) renderAccounts();
+    populateStationFilters();
+    populateStationSelect();
+  });
+  listenCollection('stations', () => {
+    if (document.getElementById('tab-stations')?.classList.contains('active')) renderStations();
+    populateStationFilters();
+    populateStationSelect();
+  });
+}
+
+// ═══════════════════════════════════════════════
+// TABS
+// ═══════════════════════════════════════════════
+window.switchTab = function switchTab(tabId, group) {
+  const tabsEl = document.getElementById(group === 'admin' ? 'admin-tabs' : 'gerant-tabs');
+  tabsEl.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  if (event && event.target) event.target.classList.add('active');
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.getElementById('tab-' + tabId).classList.add('active');
+  if (tabId === 'saisie') initSaisie();
+  if (tabId === 'historique') renderHistorique();
+  if (tabId === 'jaugeage') initJaugeage();
+  if (tabId === 'dashboard') renderDashboard();
+  if (tabId === 'all-data') renderAllData();
+  if (tabId === 'stocks') renderStocks();
+  if (tabId === 'rapports') renderRapports();
+  if (tabId === 'rapports-gerant') initRapportGerant();
+  if (tabId === 'jaugeage-admin') renderJaugeAdmin();
+  if (tabId === 'accounts') renderAccounts();
+  if (tabId === 'stations') renderStations();
+}
+
+// ═══════════════════════════════════════════════
+// SAISIE
+// ═══════════════════════════════════════════════
+function initSaisie() {
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('saisie-date').value = today;
+  updateDateDisplay();
+  checkExistingReleve();
+}
+
+window.updateDateDisplay = function updateDateDisplay() {
+  const d = document.getElementById('saisie-date')?.value;
+  if (d) {
+    const date = new Date(d + 'T00:00:00');
+    const el = document.getElementById('date-display');
+    if (el) el.textContent = date.toLocaleDateString('fr-FR', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+  }
+}
+
+function clearSaisieForm() {
+  ['gasoil-ouv1','gasoil-ferm1','gasoil-ouv2','gasoil-ferm2','gasoil-retour',
+   'super-ouv1','super-ferm1','super-ouv2','super-ferm2','super-retour'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  document.getElementById('saisie-note').value = '';
+  document.getElementById('vente-gasoil').textContent = '0.00 L';
+  document.getElementById('vente-super').textContent = '0.00 L';
+}
+
+window.checkExistingReleve = function checkExistingReleve() {
+  updateDateDisplay();
+  const date = document.getElementById('saisie-date').value;
+  const releves = DB.get('releves') || [];
+  const exists = releves.find(r => r.date === date && r.stationId === currentUser.id);
+  const warning = document.getElementById('warning-existing');
+  if (exists) {
+    warning.classList.add('show');
+    document.getElementById('gasoil-ouv1').value = exists.gasoil.ouv1 || '';
+    document.getElementById('gasoil-ferm1').value = exists.gasoil.ferm1 || '';
+    document.getElementById('gasoil-ouv2').value = exists.gasoil.ouv2 || '';
+    document.getElementById('gasoil-ferm2').value = exists.gasoil.ferm2 || '';
+    document.getElementById('gasoil-retour').value = exists.gasoil.retour || '';
+    document.getElementById('super-ouv1').value = exists.super.ouv1 || '';
+    document.getElementById('super-ferm1').value = exists.super.ferm1 || '';
+    document.getElementById('super-ouv2').value = exists.super.ouv2 || '';
+    document.getElementById('super-ferm2').value = exists.super.ferm2 || '';
+    document.getElementById('super-retour').value = exists.super.retour || '';
+    document.getElementById('saisie-note').value = exists.note || '';
+    calcVente('gasoil');
+    calcVente('super');
+  } else {
+    warning.classList.remove('show');
+  }
+}
+
+window.calcVente = function calcVente(produit) {
+  const ouv1 = parseFloat(document.getElementById(produit + '-ouv1').value) || 0;
+  const ferm1 = parseFloat(document.getElementById(produit + '-ferm1').value) || 0;
+  const ouv2 = parseFloat(document.getElementById(produit + '-ouv2').value) || 0;
+  const ferm2 = parseFloat(document.getElementById(produit + '-ferm2').value) || 0;
+  const retour = parseFloat(document.getElementById(produit + '-retour')?.value) || 0;
+  const indexTotal = (ferm1 - ouv1) + (ferm2 - ouv2);
+  const vente = Math.max(0, indexTotal - retour);
+  document.getElementById('vente-' + produit).textContent = vente.toFixed(2) + ' L';
+  updateCADisplay(produit, vente);
+}
+
+let receptionCount = 0;
+window.addReception = function addReception() {
+  receptionCount++;
+  const id = 'recv-' + receptionCount;
+  const div = document.createElement('div');
+  div.className = 'reception-row';
+  div.id = id;
+  div.innerHTML = `
+    <div class="form-group" style="margin:0;">
+      <label>Produit</label>
+      <select id="${id}-produit">
+        <option value="gasoil">Gasoil</option>
+        <option value="super">Super</option>
+      </select>
+    </div>
+    <div class="form-group" style="margin:0;">
+      <label>Quantité (litres)</label>
+      <input type="number" id="${id}-qte" min="0" step="0.01" placeholder="0.00">
+    </div>
+    <div class="form-group" style="margin:0;">
+      <label>Date livraison</label>
+      <input type="date" id="${id}-date" value="${new Date().toISOString().split('T')[0]}">
+    </div>
+    <div>
+      <label style="opacity:0;">.</label>
+      <button class="btn btn-danger btn-sm" onclick="removeReception('${id}')">✕</button>
+    </div>
+  `;
+  document.getElementById('receptions-container').appendChild(div);
+}
+
+window.removeReception = function removeReception(id) {
+  document.getElementById(id)?.remove();
+}
+
+window.submitReleve = async function submitReleve() {
+  const date = document.getElementById('saisie-date').value;
+  if (!date) { showAlert('alert-saisie', 'Veuillez sélectionner une date.', 'danger'); return; }
+
+  const gasoil = {
+    ouv1: parseFloat(document.getElementById('gasoil-ouv1').value) || 0,
+    ferm1: parseFloat(document.getElementById('gasoil-ferm1').value) || 0,
+    ouv2: parseFloat(document.getElementById('gasoil-ouv2').value) || 0,
+    ferm2: parseFloat(document.getElementById('gasoil-ferm2').value) || 0,
+    retour: parseFloat(document.getElementById('gasoil-retour').value) || 0,
+  };
+  const superCarb = {
+    ouv1: parseFloat(document.getElementById('super-ouv1').value) || 0,
+    ferm1: parseFloat(document.getElementById('super-ferm1').value) || 0,
+    ouv2: parseFloat(document.getElementById('super-ouv2').value) || 0,
+    ferm2: parseFloat(document.getElementById('super-ferm2').value) || 0,
+    retour: parseFloat(document.getElementById('super-retour').value) || 0,
+  };
+  // Formule : Vente = (Index Fermeture - Index Ouverture) - Retour en cuve
+  gasoil.vente = Math.max(0, ((gasoil.ferm1 - gasoil.ouv1) + (gasoil.ferm2 - gasoil.ouv2)) - gasoil.retour);
+  superCarb.vente = Math.max(0, ((superCarb.ferm1 - superCarb.ouv1) + (superCarb.ferm2 - superCarb.ouv2)) - superCarb.retour);
+
+  const releve = {
+    id: Date.now().toString(),
+    date,
+    stationId: currentUser.id,
+    stationName: currentUser.station,
+    gerantName: currentUser.name,
+    gasoil,
+    super: superCarb,
+    note: document.getElementById('saisie-note').value,
+    submittedAt: new Date().toISOString(),
+  };
+
+  const receptions = [];
+  document.querySelectorAll('[id^="recv-"]').forEach(row => {
+    const rowId = row.id;
+    if (!rowId.includes('-produit') && !rowId.includes('-qte') && !rowId.includes('-date')) {
+      const produit = document.getElementById(rowId + '-produit')?.value;
+      const qte = parseFloat(document.getElementById(rowId + '-qte')?.value) || 0;
+      const dateRecv = document.getElementById(rowId + '-date')?.value;
+      if (produit && qte > 0 && dateRecv) {
+        receptions.push({
+          id: Date.now().toString() + Math.random().toString(36).substr(2,5),
+          stationId: currentUser.id,
+          stationName: currentUser.station,
+          produit, quantite: qte, date: dateRecv, relevDate: date,
+        });
+      }
+    }
+  });
+
+  const btn = document.querySelector('#tab-saisie .btn-primary');
+  if (btn) { btn.textContent = '⏳ Envoi...'; btn.disabled = true; }
+
+  try {
+    showSyncStatus('sync');
+    const existingReleves = localCache.get('releves') || [];
+    const existing = existingReleves.find(r => r.date === date && r.stationId === currentUser.id);
+    if (existing) await fsDelete('releves', existing.id);
+    await fsSave('releves', releve);
+    if (receptions.length) {
+      const allRecv = localCache.get('receptions') || [];
+      const oldRecv = allRecv.filter(r => r.relevDate === date && r.stationId === currentUser.id);
+      for (const r of oldRecv) await fsDelete('receptions', r.id);
+      for (const r of receptions) await fsSave('receptions', r);
+    }
+    showSyncStatus('ok');
+    showAlert('alert-saisie', '✅ Relevé synchronisé ! Gasoil: ' + gasoil.vente.toFixed(2) + 'L — Super: ' + superCarb.vente.toFixed(2) + 'L', 'success');
+    // Notification
+    if (currentUser.role !== 'admin') {
+      showNotif('Nouveau relevé', currentUser.station + ' — Gasoil: ' + gasoil.vente.toFixed(0) + 'L, Super: ' + superCarb.vente.toFixed(0) + 'L');
+    }
+    document.getElementById('warning-existing').classList.remove('show');
+    document.getElementById('receptions-container').innerHTML = '';
+    renderHistorique();
+  } catch(e) {
+    showSyncStatus('error');
+    showAlert('alert-saisie', '⚠️ Enregistré localement — sera synchronisé à la prochaine connexion.', 'warning');
+  } finally {
+    if (btn) { btn.textContent = '📤 SOUMETTRE LE RELEVÉ'; btn.disabled = false; }
+  }
+}
+
+// ═══════════════════════════════════════════════
+// HISTORIQUE
+// ═══════════════════════════════════════════════
+function renderHistorique() {
+  const releves = (DB.get('releves') || []).filter(r => r.stationId === currentUser.id);
+  const from = document.getElementById('hist-date-from')?.value;
+  const to = document.getElementById('hist-date-to')?.value;
+  let filtered = releves;
+  if (from) filtered = filtered.filter(r => r.date >= from);
+  if (to) filtered = filtered.filter(r => r.date <= to);
+  filtered.sort((a, b) => b.date.localeCompare(a.date));
+  const recv = DB.get('receptions') || [];
+  const tbody = document.getElementById('tbody-historique');
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><div class="empty-state-icon">📭</div><div class="empty-state-text">Aucun relevé enregistré</div></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = filtered.map(r => {
+    const stRecvs = recv.filter(rv => rv.relevDate === r.date && rv.stationId === r.stationId);
+    const recvText = stRecvs.map(rv => (rv.produit === 'gasoil' ? '🔵' : '🔴') + ' ' + rv.quantite.toFixed(0) + 'L').join(', ') || '—';
+    return '<tr><td class="mono">' + formatDate(r.date) + '</td><td><span class="mono" style="color:var(--gasoil);">' + r.gasoil.vente.toFixed(2) + '</span> L</td><td><span class="mono" style="color:var(--super);">' + r.super.vente.toFixed(2) + '</span> L</td><td style="font-size:12px;">' + recvText + '</td><td style="font-size:12px; color:var(--muted);">' + (r.note || '—') + '</td></tr>';
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════
+// DASHBOARD ADMIN
+// ═══════════════════════════════════════════════
+window.renderDashboard = function renderDashboard() {
+  const today = new Date().toISOString().split('T')[0];
+  const dashDate = document.getElementById('dashboard-date');
+  if (dashDate) dashDate.textContent = new Date().toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+  const stationFilter = document.getElementById('dash-filter-station')?.value;
+  let releves = DB.get('releves') || [];
+  const recv = DB.get('receptions') || [];
+  if (stationFilter) releves = releves.filter(r => r.stationId === stationFilter);
+  const todayReleves = releves.filter(r => r.date === today);
+  const totalGasoil = todayReleves.reduce((s, r) => s + (r.gasoil?.vente || 0), 0);
+  const totalSuper = todayReleves.reduce((s, r) => s + (r.super?.vente || 0), 0);
+  const monthStr = today.substring(0, 7);
+  const monthRecv = recv.filter(r => r.date?.startsWith(monthStr));
+  const sg = document.getElementById('stat-gasoil'); if (sg) sg.textContent = totalGasoil.toFixed(2);
+  const ss = document.getElementById('stat-super'); if (ss) ss.textContent = totalSuper.toFixed(2);
+  const sst = document.getElementById('stat-stations'); if (sst) sst.textContent = todayReleves.length;
+  const sr = document.getElementById('stat-receptions'); if (sr) sr.textContent = monthRecv.length;
+  const recent = [...releves].sort((a, b) => b.date.localeCompare(a.date)).slice(0, 10);
+  const tbody = document.getElementById('tbody-recent');
+  if (tbody) {
+    if (!recent.length) {
+      tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><div class="empty-state-icon">📭</div><div class="empty-state-text">Aucun relevé reçu</div></div></td></tr>';
+    } else {
+      tbody.innerHTML = recent.map(r => '<tr><td class="mono">' + formatDate(r.date) + '</td><td><span class="tag-station">' + r.stationName + '</span></td><td class="mono" style="color:var(--gasoil);">' + (r.gasoil?.vente || 0).toFixed(2) + ' L</td><td class="mono" style="color:var(--super);">' + (r.super?.vente || 0).toFixed(2) + ' L</td><td style="font-size:12px; color:var(--muted);">' + (r.note || '—') + '</td></tr>').join('');
+    }
+  }
+  const recentRecv = [...recv].sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 8);
+  const tbodyRR = document.getElementById('tbody-recent-recv');
+  if (tbodyRR) {
+    if (!recentRecv.length) {
+      tbodyRR.innerHTML = '<tr><td colspan="4"><div class="empty-state"><div class="empty-state-icon">🚚</div><div class="empty-state-text">Aucune réception</div></div></td></tr>';
+    } else {
+      tbodyRR.innerHTML = recentRecv.map(r => '<tr><td class="mono">' + formatDate(r.date) + '</td><td><span class="tag-station">' + r.stationName + '</span></td><td><span class="badge badge-' + r.produit + '">' + r.produit + '</span></td><td class="mono">' + (r.quantite || 0).toFixed(0) + ' L</td></tr>').join('');
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════
+// ALL DATA ADMIN
+// ═══════════════════════════════════════════════
+window.renderAllData = function renderAllData() {
+  let releves = DB.get('releves') || [];
+  const station = document.getElementById('filter-station-all')?.value;
+  const from = document.getElementById('filter-date-from')?.value;
+  const to = document.getElementById('filter-date-to')?.value;
+  if (station) releves = releves.filter(r => r.stationId === station);
+  if (from) releves = releves.filter(r => r.date >= from);
+  if (to) releves = releves.filter(r => r.date <= to);
+  releves.sort((a,b) => b.date.localeCompare(a.date));
+  const tbody = document.getElementById('tbody-all');
+  if (tbody) {
+    if (!releves.length) {
+      tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><div class="empty-state-icon">📭</div><div class="empty-state-text">Aucun relevé</div></div></td></tr>';
+    } else {
+      tbody.innerHTML = releves.map(r => '<tr><td class="mono">' + formatDate(r.date) + '</td><td><span class="tag-station">' + r.stationName + '</span></td><td class="mono">' + (r.gasoil?.ouv1||0) + ' / ' + (r.gasoil?.ouv2||0) + '</td><td class="mono">' + (r.gasoil?.ferm1||0) + ' / ' + (r.gasoil?.ferm2||0) + '</td><td class="mono" style="color:var(--gasoil); font-weight:700;">' + (r.gasoil?.vente||0).toFixed(2) + ' L</td><td class="mono">' + (r.super?.ouv1||0) + ' / ' + (r.super?.ouv2||0) + '</td><td class="mono">' + (r.super?.ferm1||0) + ' / ' + (r.super?.ferm2||0) + '</td><td class="mono" style="color:var(--super); font-weight:700;">' + (r.super?.vente||0).toFixed(2) + ' L</td><td style="font-size:12px; color:var(--muted);">' + (r.note||'—') + '</td></tr>').join('');
+    }
+  }
+  let recv = DB.get('receptions') || [];
+  if (station) recv = recv.filter(r => r.stationId === station);
+  recv.sort((a,b) => (b.date||'').localeCompare(a.date||''));
+  const tbodyR = document.getElementById('tbody-all-recv');
+  if (tbodyR) {
+    if (!recv.length) {
+      tbodyR.innerHTML = '<tr><td colspan="5"><div class="empty-state"><div class="empty-state-icon">🚚</div><div class="empty-state-text">Aucune réception</div></div></td></tr>';
+    } else {
+      tbodyR.innerHTML = recv.map(r => '<tr><td class="mono">' + formatDate(r.date) + '</td><td><span class="tag-station">' + r.stationName + '</span></td><td><span class="badge badge-' + r.produit + '">' + r.produit + '</span></td><td class="mono">' + (r.quantite||0).toFixed(0) + ' L</td><td style="font-size:12px; color:var(--muted);">—</td></tr>').join('');
+    }
+  }
+}
+
+window.clearFilters = function clearFilters() {
+  ['filter-station-all','filter-date-from','filter-date-to'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+  renderAllData();
+}
+
+// ═══════════════════════════════════════════════
+// STATIONS ADMIN
+// ═══════════════════════════════════════════════
+function renderStations() {
+  const stations = DB.get('stations') || [];
+  const users = DB.get('users') || [];
+  const tbody = document.getElementById('tbody-stations');
+  if (!tbody) return;
+  if (!stations.length) {
+    tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><div class="empty-state-icon">⛽</div><div class="empty-state-text">Aucune station enregistrée</div></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = stations.map(s => {
+    const gerant = users.find(u => u.stationId === s.id && u.role === 'gerant');
+    return `<tr><td><strong>${s.nom}</strong></td><td style="color:var(--muted);">${s.ville||'—'}</td><td>${gerant ? gerant.name : '<span style="color:var(--muted); font-style:italic;">Non assigné</span>'}</td><td><span class="badge ${s.statut === 'active' ? 'badge-active' : 'badge-inactive'}">${s.statut === 'active' ? 'Active' : 'Inactive'}</span></td><td><button class="btn btn-secondary btn-sm" onclick="openModalStation('${s.id}')" style="margin-right:6px;">✏️</button><button class="btn btn-danger btn-sm" onclick="deleteStation('${s.id}')">✕</button></td></tr>`;
+  }).join('');
+}
+
+let editStationId = null;
+window.openModalStation = function openModalStation(id) {
+  editStationId = id || null;
+  const stations = DB.get('stations') || [];
+  const st = id ? stations.find(s => s.id === id) : null;
+  document.getElementById('modal-station-title').textContent = st ? 'Modifier la station' : 'Nouvelle station';
+  document.getElementById('st-nom').value = st ? st.nom : '';
+  document.getElementById('st-ville').value = st ? (st.ville||'') : '';
+  document.getElementById('st-statut').value = st ? (st.statut||'active') : 'active';
+  hideAlert('alert-modal-station');
+  document.getElementById('modal-station').classList.add('open');
+}
+
+window.saveStation = async function saveStation() {
+  const nom = document.getElementById('st-nom').value.trim();
+  const ville = document.getElementById('st-ville').value.trim();
+  const statut = document.getElementById('st-statut').value;
+  if (!nom || !ville) { showAlert('alert-modal-station', 'Veuillez renseigner le nom et la ville.', 'danger'); return; }
+  const btn = document.querySelector('#modal-station .btn-primary');
+  if (btn) { btn.textContent = '⏳...'; btn.disabled = true; }
+  try {
+    if (editStationId) {
+      const stations = DB.get('stations') || [];
+      const st = stations.find(s => s.id === editStationId) || {};
+      await fsSave('stations', { ...st, id: editStationId, nom, ville, statut });
+      const users = DB.get('users') || [];
+      for (const u of users.filter(u => u.stationId === editStationId)) await fsSave('users', { ...u, station: nom });
+      showAlert('alert-stations', '✅ Station "' + nom + '" mise à jour.', 'success');
+    } else {
+      const stations = DB.get('stations') || [];
+      if (stations.find(s => s.nom.toLowerCase() === nom.toLowerCase())) { showAlert('alert-modal-station', 'Cette station existe déjà.', 'danger'); return; }
+      await fsSave('stations', { id: 's' + Date.now(), nom, ville, statut });
+      showAlert('alert-stations', '✅ Station "' + nom + '" créée.', 'success');
+    }
+    closeModal('modal-station'); renderStations(); populateStationFilters(); populateStationSelect();
+  } catch(e) { showAlert('alert-modal-station', '⚠️ Erreur: ' + e.message, 'danger'); }
+  finally { if (btn) { btn.textContent = 'ENREGISTRER'; btn.disabled = false; } }
+}
+
+window.deleteStation = async function deleteStation(id) {
+  const stations = DB.get('stations') || [];
+  const st = stations.find(s => s.id === id);
+  const users = DB.get('users') || [];
+  const linked = users.filter(u => u.stationId === id && u.role === 'gerant');
+  if (linked.length) {
+    if (!confirm('La station "' + st?.nom + '" a un gérant. Supprimer quand même ?')) return;
+    for (const u of linked) await fsSave('users', { ...u, stationId: '', station: '—' });
+  } else {
+    if (!confirm('Supprimer la station "' + st?.nom + '" ?')) return;
+  }
+  await fsDelete('stations', id);
+  renderStations(); renderAccounts(); populateStationFilters();
+  showAlert('alert-stations', 'Station supprimée.', 'warning');
+}
+
+// ═══════════════════════════════════════════════
+// ACCOUNTS ADMIN
+// ═══════════════════════════════════════════════
+function renderAccounts() {
+  const users = DB.get('users') || [];
+  const tbody = document.getElementById('tbody-accounts');
+  if (!tbody) return;
+  tbody.innerHTML = users.map(u => `<tr><td class="mono">${u.username}</td><td>${u.name}</td><td>${u.station||'—'}</td><td><span class="badge ${u.role === 'admin' ? 'badge-admin' : 'badge-active'}">${u.role === 'admin' ? 'Admin' : 'Gérant'}</span></td><td><button class="btn btn-secondary btn-sm" onclick="openResetModal('${u.id}')" style="margin-right:6px;">🔑 MDP</button>${u.id !== 'admin' ? `<button class="btn btn-danger btn-sm" onclick="deleteAccount('${u.id}')">✕</button>` : ''}</td></tr>`).join('');
+}
+
+function populateStationSelect() {
+  const sel = document.getElementById('acc-station-sel');
+  if (!sel) return;
+  const stations = DB.get('stations') || [];
+  sel.innerHTML = '<option value="">-- Choisir une station --</option>' + stations.map(s => '<option value="' + s.id + '" data-nom="' + s.nom + '">' + s.nom + ' — ' + s.ville + '</option>').join('');
+}
+
+function toggleStationField() {
+  const role = document.getElementById('acc-role').value;
+  const group = document.getElementById('acc-station-group');
+  if (group) group.style.display = role === 'admin' ? 'none' : 'block';
+}
+
+let editAccountId = null;
+window.openModalNewAccount = function openModalNewAccount() {
+  editAccountId = null;
+  document.getElementById('modal-account-title').textContent = 'Nouveau compte gérant';
+  document.getElementById('acc-name').value = '';
+  document.getElementById('acc-user').value = '';
+  document.getElementById('acc-pass').value = '';
+  document.getElementById('acc-role').value = 'gerant';
+  populateStationSelect();
+  toggleStationField();
+  hideAlert('alert-modal');
+  document.getElementById('modal-account').classList.add('open');
+}
+
+window.saveAccount = async function saveAccount() {
+  const name = document.getElementById('acc-name').value.trim();
+  const username = document.getElementById('acc-user').value.trim();
+  const password = document.getElementById('acc-pass').value;
+  const role = document.getElementById('acc-role').value;
+  let stationId = '', stationNom = '';
+  if (role === 'gerant') {
+    const sel = document.getElementById('acc-station-sel');
+    stationId = sel.value;
+    const opt = sel.options[sel.selectedIndex];
+    stationNom = opt ? (opt.dataset.nom || '') : '';
+    if (!stationId) { showAlert('alert-modal', 'Veuillez choisir une station.', 'danger'); return; }
+  }
+  if (!name || !username || !password) { showAlert('alert-modal', 'Veuillez remplir tous les champs.', 'danger'); return; }
+  if (password.length < 6) { showAlert('alert-modal', 'Mot de passe : 6 caractères minimum.', 'danger'); return; }
+  const users = DB.get('users') || [];
+  if (users.find(u => u.username === username)) { showAlert('alert-modal', 'Cet identifiant est déjà utilisé.', 'danger'); return; }
+  if (role === 'gerant' && users.find(u => u.stationId === stationId && u.role === 'gerant')) { showAlert('alert-modal', 'Cette station a déjà un gérant.', 'danger'); return; }
+  const btn = document.querySelector('#modal-account .btn-primary');
+  if (btn) { btn.textContent = '⏳...'; btn.disabled = true; }
+  try {
+    await fsSave('users', { id: 'u' + Date.now(), username, password, name, role, station: stationNom, stationId });
+    closeModal('modal-account'); renderAccounts(); renderStations(); populateStationFilters();
+    showAlert('alert-accounts', '✅ Compte "' + name + '" créé avec succès.', 'success');
+  } catch(e) { showAlert('alert-modal', '⚠️ Erreur: ' + e.message, 'danger'); }
+  finally { if (btn) { btn.textContent = 'ENREGISTRER'; btn.disabled = false; } }
+}
+
+window.deleteAccount = async function deleteAccount(id) {
+  if (!confirm('Supprimer ce compte ?')) return;
+  await fsDelete('users', id);
+  renderAccounts(); renderStations(); populateStationFilters();
+  showAlert('alert-accounts', 'Compte supprimé.', 'warning');
+}
+
+let resetTargetId = null;
+window.openResetModal = function openResetModal(id) {
+  resetTargetId = id;
+  const users = DB.get('users') || [];
+  const user = users.find(u => u.id === id);
+  document.getElementById('reset-username-display').textContent = user ? user.username : '';
+  document.getElementById('reset-pass').value = '';
+  document.getElementById('reset-pass2').value = '';
+  hideAlert('alert-reset');
+  document.getElementById('modal-reset').classList.add('open');
+}
+
+window.doResetPassword = async function doResetPassword() {
+  const p1 = document.getElementById('reset-pass').value;
+  const p2 = document.getElementById('reset-pass2').value;
+  if (!p1 || p1.length < 6) { showAlert('alert-reset', 'Minimum 6 caractères.', 'danger'); return; }
+  if (p1 !== p2) { showAlert('alert-reset', 'Les mots de passe ne correspondent pas.', 'danger'); return; }
+  const users = DB.get('users') || [];
+  const user = users.find(u => u.id === resetTargetId);
+  if (user) await fsSave('users', { ...user, password: p1 });
+  closeModal('modal-reset');
+  showAlert('alert-accounts', '✅ Mot de passe mis à jour.', 'success');
+}
+
+// ═══════════════════════════════════════════════
+// FILTERS
+// ═══════════════════════════════════════════════
+function populateStationFilters() {
+  const users = (DB.get('users') || []).filter(u => u.role === 'gerant');
+  const opts = users.map(u => '<option value="' + u.id + '">' + u.station + '</option>').join('');
+  ['dash-filter-station', 'filter-station-all', 'filter-jauge-station', 'rapport-station'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = '<option value="">Toutes les stations</option>' + opts;
+  });
+}
+
+function populateRapportStations() {
+  populateStationFilters();
+}
+
+window.exportData = function exportData() {
+  const releves = DB.get('releves') || [];
+  const rows = [['Date','Station','Gérant','Gasoil Ouv1','Gasoil Ferm1','Gasoil Ouv2','Gasoil Ferm2','Gasoil Vendu','Super Ouv1','Super Ferm1','Super Ouv2','Super Ferm2','Super Vendu','Note']];
+  releves.forEach(r => { rows.push([r.date, r.stationName, r.gerantName, r.gasoil.ouv1, r.gasoil.ferm1, r.gasoil.ouv2, r.gasoil.ferm2, r.gasoil.vente, r.super.ouv1, r.super.ferm1, r.super.ouv2, r.super.ferm2, r.super.vente, r.note]); });
+  const csv = rows.map(r => r.join(';')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'releves_' + new Date().toISOString().split('T')[0] + '.csv'; a.click();
+}
+
+// ═══════════════════════════════════════════════
+// JAUGEAGE CUVES — Saisie en litres
+// ═══════════════════════════════════════════════
+let cuveConfig = '1G';
+
+// Config → liste des cuves
+const CUVE_CONFIGS = {
+  '1G':   [{ id:'g1', label:'Gasoil — Cuve 1', type:'gasoil' }],
+  '2G':   [{ id:'g1', label:'Gasoil — Cuve 1', type:'gasoil' }, { id:'g2', label:'Gasoil — Cuve 2', type:'gasoil' }],
+  '1G1S': [{ id:'g1', label:'Gasoil — Cuve 1', type:'gasoil' }, { id:'s1', label:'Super — Cuve 1', type:'super' }],
+  '2G1S': [{ id:'g1', label:'Gasoil — Cuve 1', type:'gasoil' }, { id:'g2', label:'Gasoil — Cuve 2', type:'gasoil' }, { id:'s1', label:'Super — Cuve 1', type:'super' }],
+  '1G2S': [{ id:'g1', label:'Gasoil — Cuve 1', type:'gasoil' }, { id:'s1', label:'Super — Cuve 1', type:'super' }, { id:'s2', label:'Super — Cuve 2', type:'super' }],
+  '2G2S': [{ id:'g1', label:'Gasoil — Cuve 1', type:'gasoil' }, { id:'g2', label:'Gasoil — Cuve 2', type:'gasoil' }, { id:'s1', label:'Super — Cuve 1', type:'super' }, { id:'s2', label:'Super — Cuve 2', type:'super' }],
+};
+
+function initJaugeage() {
+  const today = new Date().toISOString().split('T')[0];
+  const dateEl = document.getElementById('jauge-date');
+  if (dateEl) dateEl.value = today;
+  const opEl = document.getElementById('jauge-operateur');
+  if (opEl) opEl.value = currentUser.name;
+  const stEl = document.getElementById('jauge-station-name');
+  if (stEl) stEl.textContent = currentUser.station;
+  updateJaugeDateDisplay();
+  // Charger dernière config utilisée
+  const jaugeages = DB.get('jaugeages') || [];
+  const last = [...jaugeages].filter(j => j.stationId === currentUser.id).sort((a,b) => b.date.localeCompare(a.date))[0];
+  cuveConfig = last ? (last.config || '1G') : '1G';
+  const sel = document.getElementById('cuve-config-select');
+  if (sel) sel.value = cuveConfig;
+  renderCuves();
+  onJaugeDateChange();
+}
+
+function updateJaugeDateDisplay() {
+  const d = document.getElementById('jauge-date')?.value;
+  if (d) {
+    const date = new Date(d + 'T00:00:00');
+    const el = document.getElementById('jauge-date-display');
+    if (el) el.textContent = date.toLocaleDateString('fr-FR', { weekday:'long', year:'numeric', month:'long', day:'numeric' });
+  }
+}
+
+function onCuveConfigChange() {
+  cuveConfig = document.getElementById('cuve-config-select').value;
+  renderCuves();
+}
+
+function onJaugeDateChange() {
+  updateJaugeDateDisplay();
+  const date = document.getElementById('jauge-date')?.value;
+  if (!date) return;
+  const jaugeages = DB.get('jaugeages') || [];
+  const existing = jaugeages.find(j => j.date === date && j.stationId === currentUser.id);
+  if (existing) {
+    const gEl = document.getElementById('jauge-gasoil-litres');
+    const sEl = document.getElementById('jauge-super-litres');
+    if (gEl && existing.cuve_g1 !== null) gEl.value = existing.cuve_g1;
+    if (sEl && existing.cuve_s1 !== null) sEl.value = existing.cuve_s1;
+    const hEl = document.getElementById('jauge-heure');
+    if (hEl && existing.heure) hEl.value = existing.heure;
+    const nEl = document.getElementById('jauge-note');
+    if (nEl && existing.note) nEl.value = existing.note;
+    showAlert('alert-jaugeage', '⚠️ Jaugeage existant chargé pour cette date.', 'warning');
+  }
+}
+
+function renderCuves() {
+  const container = document.getElementById('cuves-container');
+  if (!container) return;
+  const cuves = CUVE_CONFIGS[cuveConfig] || CUVE_CONFIGS['1G'];
+  container.innerHTML = '<div class="cuve-section">' + cuves.map(c => buildCuveCard(c)).join('') + '</div>';
+}
+
+function buildCuveCard(cuve) {
+  const icon = cuve.type === 'gasoil' ? '🔵' : '🔴';
+  const colorVar = cuve.type === 'gasoil' ? 'var(--gasoil)' : 'var(--super)';
+  const borderColor = cuve.type === 'gasoil' ? 'rgba(59,158,255,0.3)' : 'rgba(255,90,90,0.3)';
+  return `<div class="cuve-card cuve-${cuve.type}" style="margin-bottom:16px;">
+    <div class="cuve-card-title">${icon} ${cuve.label}</div>
+    <div class="form-group" style="max-width:280px; margin-top:12px;">
+      <label>Lecture du jauge <span style="color:${colorVar};">(litres)</span> <span class="required">*</span></label>
+      <input type="number" id="jauge-${cuve.id}-litres" min="0" step="1" placeholder="ex: 15000"
+        style="font-family:'JetBrains Mono',monospace; font-size:18px; font-weight:700; color:${colorVar}; border-color:${borderColor};"
+        oninput="updateCuveBar('${cuve.id}')">
+    </div>
+    <div id="bar-wrap-${cuve.id}" style="display:none; margin-top:8px;">
+      <div style="height:8px; background:var(--border); border-radius:4px; overflow:hidden;">
+        <div id="bar-${cuve.id}" style="height:100%; background:${colorVar}; width:0%; transition:width 0.3s;"></div>
+      </div>
+      <div id="bar-lbl-${cuve.id}" style="font-size:11px; color:var(--muted); margin-top:4px;"></div>
+    </div>
+  </div>`;
+}
+
+function updateCuveBar(id) {
+  // Optionnel: afficher une barre si capacité connue
+  // Pour l'instant juste valider que c'est un nombre positif
+  const val = parseFloat(document.getElementById('jauge-' + id + '-litres')?.value) || 0;
+  const barWrap = document.getElementById('bar-wrap-' + id);
+  if (barWrap) barWrap.style.display = val > 0 ? 'block' : 'none';
+}
+
+async function submitJaugeage() {
+  const date = document.getElementById('jauge-date')?.value;
+  if (!date) { showAlert('alert-jaugeage', 'Veuillez sélectionner une date.', 'danger'); return; }
+
+  const valG = parseFloat(document.getElementById('jauge-gasoil-litres')?.value);
+  const valS = parseFloat(document.getElementById('jauge-super-litres')?.value);
+
+  if (isNaN(valG) && isNaN(valS)) {
+    showAlert('alert-jaugeage', 'Veuillez saisir au moins une lecture.', 'danger'); return;
+  }
+
+  const record = {
+    id: Date.now().toString(),
+    date,
+    heure: document.getElementById('jauge-heure')?.value || '',
+    stationId: currentUser.id,
+    stationName: currentUser.station,
+    gerantName: currentUser.name,
+    config: '1G1S',
+    note: document.getElementById('jauge-note')?.value || '',
+    submittedAt: new Date().toISOString(),
+    cuve_g1: !isNaN(valG) ? valG : null,
+    cuve_s1: !isNaN(valS) ? valS : null,
+  };
+
+  showSyncStatus('sync');
+  const jaugeages = DB.get('jaugeages') || [];
+  const existing = jaugeages.find(j => j.date === date && j.stationId === currentUser.id);
+  if (existing) await fsDelete('jaugeages', existing.id);
+  await fsSave('jaugeages', record);
+  showSyncStatus('ok');
+
+  const parts = [];
+  if (!isNaN(valG)) parts.push('🔵 Gasoil: ' + valG.toLocaleString('fr') + ' L');
+  if (!isNaN(valS)) parts.push('🔴 Super: ' + valS.toLocaleString('fr') + ' L');
+  showAlert('alert-jaugeage', '✅ Jaugeage enregistré ! ' + parts.join(' — '), 'success');
+
+  document.getElementById('jauge-gasoil-litres').value = '';
+  document.getElementById('jauge-super-litres').value = '';
+  const noteEl = document.getElementById('jauge-note');
+  if (noteEl) noteEl.value = '';
+}
+
+function renderJaugeAdmin() {
+  let jaugeages = DB.get('jaugeages') || [];
+  const station = document.getElementById('filter-jauge-station')?.value;
+  const from = document.getElementById('filter-jauge-from')?.value;
+  const to = document.getElementById('filter-jauge-to')?.value;
+  if (station) jaugeages = jaugeages.filter(j => j.stationId === station);
+  if (from) jaugeages = jaugeages.filter(j => j.date >= from);
+  if (to) jaugeages = jaugeages.filter(j => j.date <= to);
+  jaugeages.sort((a,b) => b.date.localeCompare(a.date));
+
+  const tbody = document.getElementById('tbody-jaugeage-admin');
+  if (!tbody) return;
+  if (!jaugeages.length) {
+    tbody.innerHTML = '<tr><td colspan="9"><div class="empty-state"><div class="empty-state-icon">🛢️</div><div class="empty-state-text">Aucun jaugeage enregistré</div></div></td></tr>';
+    return;
+  }
+  const cfgLabels = { '1G':'1G', '2G':'2G', '1G1S':'1G+1S', '2G1S':'2G+1S', '1G2S':'1G+2S', '2G2S':'2G+2S' };
+  tbody.innerHTML = jaugeages.map(j => {
+    const fmt = (key) => j[key] !== undefined ? j[key].toLocaleString('fr') + ' L' : '—';
+    return `<tr>
+      <td class="mono">${formatDate(j.date)}</td>
+      <td class="mono">${j.heure||'—'}</td>
+      <td><span class="tag-station">${j.stationName}</span></td>
+      <td><span class="badge badge-jauge">${cfgLabels[j.config]||j.config}</span></td>
+      <td class="mono" style="color:var(--gasoil); font-weight:700;">${fmt('cuve_g1')}</td>
+      <td class="mono" style="color:var(--gasoil);">${fmt('cuve_g2')}</td>
+      <td class="mono" style="color:var(--super); font-weight:700;">${fmt('cuve_s1')}</td>
+      <td class="mono" style="color:var(--super);">${fmt('cuve_s2')}</td>
+      <td style="font-size:12px; color:var(--muted);">${j.note||'—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+function clearJaugeFilters() {
+  ['filter-jauge-station','filter-jauge-from','filter-jauge-to'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.value = '';
+  });
+  renderJaugeAdmin();
+}
+
+function exportJaugeages() {
+  const jaugeages = DB.get('jaugeages') || [];
+  const rows = [['Date','Heure','Station','Gérant','Config','Gasoil C1 (L)','Gasoil C2 (L)','Super C1 (L)','Super C2 (L)','Observation']];
+  jaugeages.forEach(j => {
+    rows.push([j.date, j.heure||'', j.stationName, j.gerantName, j.config,
+      j.cuve_g1||'', j.cuve_g2||'', j.cuve_s1||'', j.cuve_s2||'', j.note||'']);
+  });
+  const csv = rows.map(r => r.join(';')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'jaugeages_' + new Date().toISOString().split('T')[0] + '.csv';
+  a.click();
+}
+
+// ═══════════════════════════════════════════════
+// LANGUE (FR / PT)
+// ═══════════════════════════════════════════════
+const TRANSLATIONS = {
+  fr: {
+    dashboard: '📊 Dashboard', releves: '📋 Relevés', rapports: '📈 Rapports',
+    jaugeages: '🛢️ Jaugeages', stocks: '📦 Stocks', stations: '⛽ Stations', gerants: '👥 Gérants',
+    saisie: '✏️ Saisie du jour', jaugeage: '🛢️ Jaugeage Cuves', historique: '📋 Historique',
+    connexion: 'CONNEXION', deconnexion: '✕ Déconnexion',
+    soumettre: '📤 SOUMETTRE LE RELEVÉ', enregistrer: '📊 ENREGISTRER LE JAUGEAGE',
+  },
+  pt: {
+    dashboard: '📊 Painel', releves: '📋 Leituras', rapports: '📈 Relatórios',
+    jaugeages: '🛢️ Medições', stocks: '📦 Stocks', stations: '⛽ Postos', gerants: '👥 Gestores',
+    saisie: '✏️ Registo do dia', jaugeage: '🛢️ Medição Tanques', historique: '📋 Histórico',
+    connexion: 'ENTRAR', deconnexion: '✕ Sair',
+    soumettre: '📤 ENVIAR REGISTO', enregistrer: '📊 GUARDAR MEDIÇÃO',
+  }
+};
+
+let currentLang = localStorage.getItem('elton_lang') || 'fr';
+
+function setLang(lang) {
+  currentLang = lang;
+  localStorage.setItem('elton_lang', lang);
+  document.getElementById('lang-fr').classList.toggle('active', lang === 'fr');
+  document.getElementById('lang-pt').classList.toggle('active', lang === 'pt');
+  applyLang();
+}
+
+function applyLang() {
+  const t = TRANSLATIONS[currentLang];
+  // Mettre à jour les éléments data-fr / data-pt
+  document.querySelectorAll('[data-fr]').forEach(el => {
+    el.textContent = currentLang === 'fr' ? el.dataset.fr : (el.dataset.pt || el.dataset.fr);
+  });
+}
+
+// ═══════════════════════════════════════════════
+// PRIX & SEUILS
+// ═══════════════════════════════════════════════
+function loadPrix() {
+  const prix = JSON.parse(localStorage.getItem('elton_prix') || '{}');
+  const pg = document.getElementById('prix-gasoil');
+  const ps = document.getElementById('prix-super');
+  const sg = document.getElementById('seuil-gasoil');
+  const ss = document.getElementById('seuil-super');
+  if (pg && prix.gasoil) pg.value = prix.gasoil;
+  if (ps && prix.super) ps.value = prix.super;
+  if (sg && prix.seuilGasoil) sg.value = prix.seuilGasoil;
+  if (ss && prix.seuilSuper) ss.value = prix.seuilSuper;
+}
+
+function savePrix() {
+  const prix = {
+    gasoil: parseFloat(document.getElementById('prix-gasoil')?.value) || 0,
+    super: parseFloat(document.getElementById('prix-super')?.value) || 0,
+    seuilGasoil: parseFloat(document.getElementById('seuil-gasoil')?.value) || 0,
+    seuilSuper: parseFloat(document.getElementById('seuil-super')?.value) || 0,
+  };
+  localStorage.setItem('elton_prix', JSON.stringify(prix));
+  renderStocks();
+}
+
+function getPrix() {
+  return JSON.parse(localStorage.getItem('elton_prix') || '{"gasoil":0,"super":0,"seuilGasoil":0,"seuilSuper":0}');
+}
+
+// Afficher CA dans le formulaire saisie gérant
+function updateCADisplay(produit, litres) {
+  const prix = getPrix();
+  const prixU = produit === 'gasoil' ? prix.gasoil : prix.super;
+  const caEl = document.getElementById('ca-' + produit);
+  const caWrap = document.getElementById('ca-' + produit + '-display');
+  if (caEl && caWrap && prixU > 0 && litres > 0) {
+    caWrap.style.display = 'block';
+    caEl.textContent = (litres * prixU).toLocaleString('fr');
+  } else if (caWrap) {
+    caWrap.style.display = 'none';
+  }
+}
+
+// ═══════════════════════════════════════════════
+// STOCKS THÉORIQUES
+// ═══════════════════════════════════════════════
+function calcStockStation(stationId) {
+  const releves = (DB.get('releves') || []).filter(r => r.stationId === stationId);
+  const recvs = (DB.get('receptions') || []).filter(r => r.stationId === stationId);
+
+  let stockGasoil = 0, stockSuper = 0;
+  // Stock = somme réceptions - somme ventes
+  recvs.forEach(r => {
+    if (r.produit === 'gasoil') stockGasoil += r.quantite || 0;
+    else if (r.produit === 'super') stockSuper += r.quantite || 0;
+  });
+  releves.forEach(r => {
+    stockGasoil -= r.gasoil?.vente || 0;
+    stockSuper -= r.super?.vente || 0;
+  });
+  return {
+    gasoil: Math.max(0, stockGasoil),
+    super: Math.max(0, stockSuper),
+  };
+}
+
+function renderStocks() {
+  const users = (DB.get('users') || []).filter(u => u.role === 'gerant');
+  const prix = getPrix();
+  loadPrix();
+
+  // Alertes
+  const alertesEl = document.getElementById('alertes-stock');
+  const stockGrid = document.getElementById('stock-grid');
+  if (!alertesEl || !stockGrid) return;
+
+  let alertesHTML = '';
+  let cardsHTML = '';
+
+  users.forEach(u => {
+    const stock = calcStockStation(u.id);
+    const alerteG = prix.seuilGasoil > 0 && stock.gasoil < prix.seuilGasoil;
+    const alerteS = prix.seuilSuper > 0 && stock.super < prix.seuilSuper;
+
+    if (alerteG) {
+      alertesHTML += `<div class="alert-stock">
+        <div class="alert-stock-icon">⚠️</div>
+        <div class="alert-stock-text">
+          <span class="alert-stock-station">${u.station}</span> — Stock Gasoil bas : 
+          <strong>${stock.gasoil.toLocaleString('fr')} L</strong> (seuil : ${prix.seuilGasoil.toLocaleString('fr')} L)
+        </div>
+      </div>`;
+    }
+    if (alerteS) {
+      alertesHTML += `<div class="alert-stock">
+        <div class="alert-stock-icon">⚠️</div>
+        <div class="alert-stock-text">
+          <span class="alert-stock-station">${u.station}</span> — Stock Super bas : 
+          <strong>${stock.super.toLocaleString('fr')} L</strong> (seuil : ${prix.seuilSuper.toLocaleString('fr')} L)
+        </div>
+      </div>`;
+    }
+
+    const pctG = prix.seuilGasoil > 0 ? Math.min(100, (stock.gasoil / (prix.seuilGasoil * 4)) * 100) : 50;
+    const pctS = prix.seuilSuper > 0 ? Math.min(100, (stock.super / (prix.seuilSuper * 4)) * 100) : 50;
+    const lowG = alerteG ? 'low' : 'gasoil';
+    const lowS = alerteS ? 'low' : 'super';
+
+    cardsHTML += `<div class="stock-card">
+      <div class="stock-card-header">
+        <div class="stock-card-title">⛽ ${u.station}</div>
+      </div>
+      <div style="margin-bottom:12px;">
+        <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+          <span style="font-size:11px; color:var(--gasoil);">🔵 GASOIL</span>
+          <span class="stock-level ${lowG}">${stock.gasoil.toLocaleString('fr')} L</span>
+        </div>
+        <div class="stock-bar-wrap"><div class="stock-bar ${lowG}" style="width:${pctG}%"></div></div>
+        ${prix.gasoil > 0 ? `<div class="stock-pct">Valeur: ${(stock.gasoil * prix.gasoil).toLocaleString('fr')} GNF</div>` : ''}
+      </div>
+      <div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+          <span style="font-size:11px; color:var(--super);">🔴 SUPER</span>
+          <span class="stock-level ${lowS}">${stock.super.toLocaleString('fr')} L</span>
+        </div>
+        <div class="stock-bar-wrap"><div class="stock-bar ${lowS}" style="width:${pctS}%"></div></div>
+        ${prix.super > 0 ? `<div class="stock-pct">Valeur: ${(stock.super * prix.super).toLocaleString('fr')} GNF</div>` : ''}
+      </div>
+    </div>`;
+  });
+
+  alertesEl.innerHTML = alertesHTML || '<div style="color:var(--success); font-size:13px; margin-bottom:16px;">✅ Tous les stocks sont au-dessus des seuils.</div>';
+  stockGrid.innerHTML = cardsHTML || '<div class="empty-state"><div class="empty-state-icon">📦</div><div class="empty-state-text">Aucun gérant enregistré</div></div>';
+}
+
+// Notification push quand un gérant soumet
+function showNotif(title, message) {
+  // Notification visuelle dans l'interface
+  const notif = document.createElement('div');
+  notif.className = 'notif-banner';
+  notif.innerHTML = `<div class="notif-title">🔔 ${title}</div><div>${message}</div>`;
+  document.body.appendChild(notif);
+  setTimeout(() => notif.remove(), 5000);
+
+  // Notification navigateur si autorisée
+  if ('Notification' in window && Notification.permission === 'granted') {
+    new Notification(title, { body: message, icon: '/icon-192.png' });
+  }
+}
+
+function requestNotifPermission() {
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+}
+
+// ═══════════════════════════════════════════════
+// RAPPORTS MENSUELS
+// ═══════════════════════════════════════════════
+function initRapportMois() {
+  const sel = document.getElementById('rapport-mois');
+  if (!sel) return;
+  const mois = [];
+  const now = new Date();
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const val = d.toISOString().substring(0, 7);
+    const label = d.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+    mois.push({ val, label });
+  }
+  sel.innerHTML = mois.map(m => `<option value="${m.val}">${m.label}</option>`).join('');
+}
+
+function renderRapports() {
+  const mois = document.getElementById('rapport-mois')?.value || new Date().toISOString().substring(0, 7);
+  const stationFilter = document.getElementById('rapport-station')?.value;
+  const prix = getPrix();
+
+  let releves = (DB.get('releves') || []).filter(r => r.date?.startsWith(mois));
+  if (stationFilter) releves = releves.filter(r => r.stationId === stationFilter);
+
+  const totalG = releves.reduce((s, r) => s + (r.gasoil?.vente || 0), 0);
+  const totalS = releves.reduce((s, r) => s + (r.super?.vente || 0), 0);
+  const caG = totalG * prix.gasoil;
+  const caS = totalS * prix.super;
+  const joursActifs = new Set(releves.map(r => r.date)).size;
+
+  // Stats
+  const statsEl = document.getElementById('rapport-stats');
+  if (statsEl) {
+    statsEl.innerHTML = `
+      <div class="rapport-stat"><div class="rapport-stat-label">Total Gasoil</div><div class="rapport-stat-value" style="color:var(--gasoil);">${totalG.toLocaleString('fr', {maximumFractionDigits:0})}</div><div class="rapport-stat-unit">litres</div></div>
+      <div class="rapport-stat"><div class="rapport-stat-label">Total Super</div><div class="rapport-stat-value" style="color:var(--super);">${totalS.toLocaleString('fr', {maximumFractionDigits:0})}</div><div class="rapport-stat-unit">litres</div></div>
+      <div class="rapport-stat"><div class="rapport-stat-label">CA Gasoil</div><div class="rapport-stat-value" style="color:var(--accent);">${caG > 0 ? (caG/1000000).toFixed(1) + 'M' : '—'}</div><div class="rapport-stat-unit">GNF</div></div>
+      <div class="rapport-stat"><div class="rapport-stat-label">CA Super</div><div class="rapport-stat-value" style="color:var(--accent);">${caS > 0 ? (caS/1000000).toFixed(1) + 'M' : '—'}</div><div class="rapport-stat-unit">GNF</div></div>
+      <div class="rapport-stat"><div class="rapport-stat-label">CA Total</div><div class="rapport-stat-value" style="color:var(--success);">${(caG+caS) > 0 ? ((caG+caS)/1000000).toFixed(1) + 'M' : '—'}</div><div class="rapport-stat-unit">GNF</div></div>
+      <div class="rapport-stat"><div class="rapport-stat-label">Jours actifs</div><div class="rapport-stat-value">${joursActifs}</div><div class="rapport-stat-unit">jours saisis</div></div>
+    `;
+  }
+
+  // Graphique
+  renderChartVentes(releves, mois);
+
+  // Tableau par station
+  const users = (DB.get('users') || []).filter(u => u.role === 'gerant');
+  const tbody = document.getElementById('tbody-rapport');
+  if (tbody) {
+    if (!releves.length) {
+      tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="empty-state-icon">📊</div><div class="empty-state-text">Aucune donnée pour cette période</div></div></td></tr>';
+    } else {
+      const byStation = {};
+      releves.forEach(r => {
+        if (!byStation[r.stationId]) byStation[r.stationId] = { name: r.stationName, jours: new Set(), gasoil: 0, super: 0 };
+        byStation[r.stationId].jours.add(r.date);
+        byStation[r.stationId].gasoil += r.gasoil?.vente || 0;
+        byStation[r.stationId].super += r.super?.vente || 0;
+      });
+      tbody.innerHTML = Object.values(byStation).map(s => {
+        const cag = s.gasoil * prix.gasoil;
+        const cas = s.super * prix.super;
+        return `<tr>
+          <td><span class="tag-station">${s.name}</span></td>
+          <td class="mono">${s.jours.size}</td>
+          <td class="mono" style="color:var(--gasoil);">${s.gasoil.toLocaleString('fr', {maximumFractionDigits:0})} L</td>
+          <td class="mono" style="color:var(--super);">${s.super.toLocaleString('fr', {maximumFractionDigits:0})} L</td>
+          <td class="mono" style="color:var(--accent);">${cag > 0 ? cag.toLocaleString('fr', {maximumFractionDigits:0}) : '—'}</td>
+          <td class="mono" style="color:var(--accent);">${cas > 0 ? cas.toLocaleString('fr', {maximumFractionDigits:0}) : '—'}</td>
+          <td class="mono" style="color:var(--success); font-weight:700;">${(cag+cas) > 0 ? (cag+cas).toLocaleString('fr', {maximumFractionDigits:0}) : '—'}</td>
+        </tr>`;
+      }).join('');
+    }
+  }
+}
+
+function renderChartVentes(releves, mois) {
+  const canvas = document.getElementById('chart-ventes');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const [year, month] = mois.split('-').map(Number);
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const labels = Array.from({length: daysInMonth}, (_, i) => i + 1);
+  const gasoilData = new Array(daysInMonth).fill(0);
+  const superData = new Array(daysInMonth).fill(0);
+  releves.forEach(r => {
+    const day = parseInt(r.date.split('-')[2]) - 1;
+    if (day >= 0 && day < daysInMonth) {
+      gasoilData[day] += r.gasoil?.vente || 0;
+      superData[day] += r.super?.vente || 0;
+    }
+  });
+  // Dessiner manuellement
+  const W = canvas.offsetWidth || 600;
+  const H = 200;
+  canvas.width = W;
+  canvas.height = H;
+  const maxVal = Math.max(...gasoilData, ...superData, 1);
+  const padL = 50, padR = 10, padT = 10, padB = 30;
+  const cW = W - padL - padR;
+  const cH = H - padT - padB;
+  ctx.clearRect(0, 0, W, H);
+  // Grille
+  ctx.strokeStyle = '#1e2530';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = padT + (cH / 4) * i;
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(W - padR, y); ctx.stroke();
+    ctx.fillStyle = '#6b7585';
+    ctx.font = '10px JetBrains Mono, monospace';
+    ctx.textAlign = 'right';
+    ctx.fillText(Math.round(maxVal * (4 - i) / 4).toLocaleString('fr'), padL - 4, y + 4);
+  }
+  // Lignes gasoil
+  const drawLine = (data, color) => {
+    ctx.beginPath();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    data.forEach((v, i) => {
+      const x = padL + (i / (daysInMonth - 1)) * cW;
+      const y = padT + cH - (v / maxVal) * cH;
+      i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+    // Points
+    data.forEach((v, i) => {
+      if (v > 0) {
+        const x = padL + (i / (daysInMonth - 1)) * cW;
+        const y = padT + cH - (v / maxVal) * cH;
+        ctx.beginPath();
+        ctx.arc(x, y, 3, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+      }
+    });
+  };
+  drawLine(gasoilData, '#3b9eff');
+  drawLine(superData, '#ff5a5a');
+  // Labels X (quelques jours seulement)
+  ctx.fillStyle = '#6b7585';
+  ctx.font = '10px sans-serif';
+  ctx.textAlign = 'center';
+  [1, 5, 10, 15, 20, 25, daysInMonth].forEach(d => {
+    const i = d - 1;
+    const x = padL + (i / (daysInMonth - 1)) * cW;
+    ctx.fillText(d, x, H - 8);
+  });
+  // Légende
+  ctx.fillStyle = '#3b9eff';
+  ctx.fillRect(W - 120, 8, 12, 8);
+  ctx.fillStyle = '#6b7585';
+  ctx.font = '11px sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText('Gasoil', W - 104, 16);
+  ctx.fillStyle = '#ff5a5a';
+  ctx.fillRect(W - 60, 8, 12, 8);
+  ctx.fillStyle = '#6b7585';
+  ctx.fillText('Super', W - 44, 16);
+}
+
+function exportRapport() {
+  const mois = document.getElementById('rapport-mois')?.value || new Date().toISOString().substring(0, 7);
+  const releves = (DB.get('releves') || []).filter(r => r.date?.startsWith(mois));
+  const prix = getPrix();
+  const rows = [['Date', 'Station', 'Gasoil (L)', 'Super (L)', 'CA Gasoil (GNF)', 'CA Super (GNF)', 'CA Total (GNF)']];
+  releves.sort((a,b) => a.date.localeCompare(b.date)).forEach(r => {
+    const g = r.gasoil?.vente || 0;
+    const s = r.super?.vente || 0;
+    rows.push([r.date, r.stationName, g, s, Math.round(g * prix.gasoil), Math.round(s * prix.super), Math.round(g * prix.gasoil + s * prix.super)]);
+  });
+  const csv = rows.map(r => r.join(';')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'rapport_' + mois + '.csv';
+  a.click();
+}
+
+// ═══════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+window.closeModal = closeModal;
+
+function showAlert(id, msg, type) {
+  const el = document.getElementById(id); if (!el) return;
+  el.className = 'alert alert-' + type + ' show'; el.textContent = msg;
+  setTimeout(() => el.classList.remove('show'), 6000);
+}
+function hideAlert(id) { const el = document.getElementById(id); if (el) el.classList.remove('show'); }
+function formatDate(dateStr) {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('open'); });
+});
+
+// ═══════════════════════════════════════════════
+// LANGUE — Traduction complète FR/PT
+// ═══════════════════════════════════════════════
+currentLang = localStorage.getItem('elton_lang') || 'fr';
+
+const UI_TEXTS = {
+  fr: {
+    // Onglets admin
+    'tab_dashboard': '📊 Dashboard',
+    'tab_releves': '📋 Relevés',
+    'tab_stocks': '📦 Stocks',
+    'tab_rapports': '📈 Rapports',
+    'tab_jaugeages': '🛢️ Jaugeages',
+    'tab_stations': '⛽ Stations',
+    'tab_gerants': '👥 Gérants',
+    // Onglets gérant
+    'tab_saisie': '✏️ Saisie du jour',
+    'tab_jaugeage': '🛢️ Jaugeage Cuves',
+    'tab_historique': '📋 Historique',
+    'tab_rapports_gerant': '📈 Rapports',
+    // Titres pages
+    'title_saisie': 'Saisie du Jour',
+    'title_historique': 'Mon Historique',
+    'title_jaugeage': 'Jaugeage des Cuves',
+    'title_dashboard': 'Tableau de bord',
+    'title_stocks': 'Stocks & Alertes',
+    'title_rapports': 'Rapports & Analyses',
+    'title_stations': 'Gestion des Stations',
+    'title_gerants': 'Gestion des Gérants',
+    'title_rapports_gerant': 'Mes Rapports',
+    // Boutons
+    'btn_connexion': 'CONNEXION',
+    'btn_deconnexion': '✕ Déconnexion',
+    'btn_soumettre': '📤 SOUMETTRE LE RELEVÉ',
+    'btn_enregistrer_jauge': '📊 ENREGISTRER LE JAUGEAGE',
+    'btn_nouvelle_station': '+ Nouvelle station',
+    'btn_nouveau_gerant': '+ Nouveau gérant',
+    'btn_ajouter_reception': '+ Ajouter une réception',
+    'btn_imprimer': '🖨️ Imprimer',
+    'btn_pdf': '📄 PDF',
+    'btn_exporter': '⬇ Exporter CSV',
+    'btn_effacer': 'Effacer filtres',
+    // Labels formulaire saisie
+    'label_index_ouv1': 'Index Ouverture — Pompe 1',
+    'label_index_ferm1': 'Index Fermeture — Pompe 1',
+    'label_index_ouv2': 'Index Ouverture — Pompe 2',
+    'label_index_ferm2': 'Index Fermeture — Pompe 2',
+    'label_retour_cuve': '↩ Retour en cuve',
+    'label_vente_gasoil': '🟦 Vente journalière Gasoil',
+    'label_vente_super': '🟥 Vente journalière Super',
+    'label_prix_gasoil': 'Prix Gasoil (FCFA/L)',
+    'label_prix_super': 'Prix Super (FCFA/L)',
+    'label_ca': "💰 Chiffre d'affaires estimé",
+    'label_photo': 'Prendre une photo (optionnel)',
+    'label_note': 'Note / Observation',
+    'label_receptions': 'Réceptions de produit',
+    // Labels jaugeage
+    'label_config_cuves': 'Configuration des cuves',
+    'label_heure_jauge': 'Heure du jaugeage',
+    'label_gerant': 'Gérant',
+    'label_observation': 'Observation',
+    'label_lecture_litres': 'Lecture du jauge (litres)',
+    // Messages
+    'msg_connexion_erreur': 'Identifiant ou mot de passe incorrect.',
+    'msg_releve_existant': '⚠️ Un relevé existe déjà pour cette date.',
+    'msg_systeme': '<span data-i18n="msg_systeme">Système de gestion carburant — accès restreint</span>',
+    // Dashboard
+    'dash_total_gasoil': 'Total Gasoil',
+    'dash_total_super': 'Total Super',
+    'dash_nb_releves': 'Relevés',
+    'dash_nb_stations': 'Stations',
+    // Stocks
+    'stocks_seuil': 'Seuil alerte (L)',
+    'stocks_actualiser': '🔄 Actualiser',
+    'stocks_dernier_jauge': 'Dernier jaugeage',
+    'stocks_aucun': 'Aucun',
+    // Rapport
+    'rapport_jours_actifs': 'Jours actifs',
+    'rapport_gasoil_vendu': '🔵 Gasoil vendu',
+    'rapport_super_vendu': '🔴 Super vendu',
+    'rapport_recv_gasoil': '📥 Réceptions Gasoil',
+    'rapport_recv_super': '📥 Réceptions Super',
+    'rapport_retour_g': '↩ Retours G.',
+    'rapport_retour_s': '↩ Retours S.',
+    'rapport_total_vendu': '📦 Total vendu',
+  },
+  pt: {
+    // Onglets admin
+    'tab_dashboard': '📊 Painel',
+    'tab_releves': '📋 Leituras',
+    'tab_stocks': '📦 Stocks',
+    'tab_rapports': '📈 Relatórios',
+    'tab_jaugeages': '🛢️ Medições',
+    'tab_stations': '⛽ Postos',
+    'tab_gerants': '👥 Gestores',
+    // Onglets gérant
+    'tab_saisie': '✏️ Registo do dia',
+    'tab_jaugeage': '🛢️ Medição Tanques',
+    'tab_historique': '📋 Histórico',
+    'tab_rapports_gerant': '📈 Relatórios',
+    // Titres pages
+    'title_saisie': 'Registo do Dia',
+    'title_historique': 'Meu Histórico',
+    'title_jaugeage': 'Medição dos Tanques',
+    'title_dashboard': 'Painel de controlo',
+    'title_stocks': 'Stocks & Alertas',
+    'title_rapports': 'Relatórios & Análises',
+    'title_stations': 'Gestão dos Postos',
+    'title_gerants': 'Gestão dos Gestores',
+    'title_rapports_gerant': 'Meus Relatórios',
+    // Boutons
+    'btn_connexion': 'ENTRAR',
+    'btn_deconnexion': '✕ Sair',
+    'btn_soumettre': '📤 SUBMETER LEITURA',
+    'btn_enregistrer_jauge': '📊 REGISTAR MEDIÇÃO',
+    'btn_nouvelle_station': '+ Novo posto',
+    'btn_nouveau_gerant': '+ Novo gestor',
+    'btn_ajouter_reception': '+ Adicionar recepção',
+    'btn_imprimer': '🖨️ Imprimir',
+    'btn_pdf': '📄 PDF',
+    'btn_exporter': '⬇ Exportar CSV',
+    'btn_effacer': 'Limpar filtros',
+    // Labels formulaire saisie
+    'label_index_ouv1': 'Índice Abertura — Bomba 1',
+    'label_index_ferm1': 'Índice Fecho — Bomba 1',
+    'label_index_ouv2': 'Índice Abertura — Bomba 2',
+    'label_index_ferm2': 'Índice Fecho — Bomba 2',
+    'label_retour_cuve': '↩ Retorno ao tanque',
+    'label_vente_gasoil': '🟦 Venda diária Gasóleo',
+    'label_vente_super': '🟥 Venda diária Super',
+    'label_prix_gasoil': 'Preço Gasóleo (FCFA/L)',
+    'label_prix_super': 'Preço Super (FCFA/L)',
+    'label_ca': '💰 Faturação estimada',
+    'label_photo': 'Tirar uma foto (opcional)',
+    'label_note': 'Nota / Observação',
+    'label_receptions': 'Recepções de produto',
+    // Labels jaugeage
+    'label_config_cuves': 'Configuração dos tanques',
+    'label_heure_jauge': 'Hora da medição',
+    'label_gerant': 'Gestor',
+    'label_observation': 'Observação',
+    'label_lecture_litres': 'Leitura do nível (litros)',
+    // Messages
+    'msg_connexion_erreur': 'Identificador ou palavra-passe incorretos.',
+    'msg_releve_existant': '⚠️ Já existe um registo para esta data.',
+    'msg_systeme': 'Sistema de gestão de combustível — acesso restrito',
+    // Dashboard
+    'dash_total_gasoil': 'Total Gasóleo',
+    'dash_total_super': 'Total Super',
+    'dash_nb_releves': 'Leituras',
+    'dash_nb_stations': 'Postos',
+    // Stocks
+    'stocks_seuil': 'Limite alerta (L)',
+    'stocks_actualiser': '🔄 Atualizar',
+    'stocks_dernier_jauge': 'Última medição',
+    'stocks_aucun': 'Nenhuma',
+    // Rapport
+    'rapport_jours_actifs': 'Dias activos',
+    'rapport_gasoil_vendu': '🔵 Gasóleo vendido',
+    'rapport_super_vendu': '🔴 Super vendido',
+    'rapport_recv_gasoil': '📥 Recepções Gasóleo',
+    'rapport_recv_super': '📥 Recepções Super',
+    'rapport_retour_g': '↩ Retornos G.',
+    'rapport_retour_s': '↩ Retornos S.',
+    'rapport_total_vendu': '📦 Total vendido',
+  }
+};
+
+function tr(key) {
+  return (UI_TEXTS[currentLang] && UI_TEXTS[currentLang][key]) || (UI_TEXTS['fr'][key]) || key;
+}
+
+function setLang(lang) {
+  currentLang = lang;
+  localStorage.setItem('elton_lang', lang);
+
+  // Mettre à jour boutons langue
+  ['btn-lang-fr','lang-fr'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('active', lang === 'fr');
+  });
+  ['btn-lang-pt','lang-pt'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('active', lang === 'pt');
+  });
+
+  // Traduire tous les éléments avec data-i18n
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    el.textContent = tr(key);
+  });
+
+  // Mettre à jour les placeholders
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    el.placeholder = tr(el.getAttribute('data-i18n-placeholder'));
+  });
+
+  // Onglets admin
+  const adminTabMap = [
+    ['dashboard','admin'], ['all-data','releves'], ['stocks','stocks'],
+    ['rapports','rapports'], ['jaugeage-admin','jaugeages'], ['stations','stations'], ['accounts','gerants']
+  ];
+  const adminBtns = document.querySelectorAll('#admin-tabs .tab');
+  adminBtns.forEach((btn, i) => {
+    if (adminTabMap[i]) btn.textContent = tr('tab_' + adminTabMap[i][1]);
+  });
+
+  // Onglets gérant
+  const gerantTabMap = ['saisie','jaugeage','historique','rapports_gerant'];
+  const gerantBtns = document.querySelectorAll('#gerant-tabs .tab');
+  gerantBtns.forEach((btn, i) => {
+    if (gerantTabMap[i]) btn.textContent = tr('tab_' + gerantTabMap[i]);
+  });
+}
+
+// ═══════════════════════════════════════════════
+// THEME CLAIR/SOMBRE
+// ═══════════════════════════════════════════════
+function toggleTheme() {
+  const isLight = document.body.classList.toggle('theme-light');
+  localStorage.setItem('elton_theme', isLight ? 'light' : 'dark');
+  const btn = document.querySelector('[onclick="toggleTheme()"]');
+  if (btn) btn.textContent = isLight ? '☀️' : '🌙';
+}
+
+function initTheme() {
+  if (localStorage.getItem('elton_theme') === 'light') {
+    document.body.classList.add('theme-light');
+    const btn = document.querySelector('[onclick="toggleTheme()"]');
+    if (btn) btn.textContent = '☀️';
+  }
+  setLang(localStorage.getItem('elton_lang') || 'fr');
+}
+
+// ═══════════════════════════════════════════════
+// PRIX & CHIFFRE D'AFFAIRES
+// ═══════════════════════════════════════════════
+function calcCA() {
+  const venteGText = document.getElementById('vente-gasoil')?.textContent || '0';
+  const venteSText = document.getElementById('vente-super')?.textContent || '0';
+  const venteG = parseFloat(venteGText) || 0;
+  const venteS = parseFloat(venteSText) || 0;
+  const prixG = parseFloat(document.getElementById('prix-gasoil')?.value) || 0;
+  const prixS = parseFloat(document.getElementById('prix-super')?.value) || 0;
+  const ca = (venteG * prixG) + (venteS * prixS);
+  const el = document.getElementById('ca-total');
+  if (el) el.textContent = ca > 0 ? ca.toLocaleString('fr') + ' FCFA' : '— FCFA';
+}
+
+// ═══════════════════════════════════════════════
+// PHOTO COMPTEURS
+// ═══════════════════════════════════════════════
+let photoBase64 = null;
+
+function previewPhoto() {
+  const input = document.getElementById('photo-input');
+  const preview = document.getElementById('photo-preview');
+  if (!input || !input.files || !input.files[0]) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    photoBase64 = e.target.result;
+    if (preview) { preview.src = photoBase64; preview.classList.add('show'); }
+  };
+  reader.readAsDataURL(input.files[0]);
+}
+
+// ═══════════════════════════════════════════════
+// STOCKS THÉORIQUES
+// ═══════════════════════════════════════════════
+function calcStockStation(stationId) {
+  const releves = (DB.get('releves') || []).filter(r => r.stationId === stationId);
+  const receptions = (DB.get('receptions') || []).filter(r => r.stationId === stationId);
+  let stockG = 0, stockS = 0;
+  receptions.forEach(r => {
+    if (r.produit === 'gasoil') stockG += r.quantite || 0;
+    else stockS += r.quantite || 0;
+  });
+  releves.forEach(r => {
+    stockG -= r.gasoil?.vente || 0;
+    stockS -= r.super?.vente || 0;
+  });
+  return { gasoil: Math.max(0, stockG), super: Math.max(0, stockS) };
+}
+
+function renderStocks() {
+  const users = (DB.get('users') || []).filter(u => u.role === 'gerant');
+  const seuil = parseFloat(document.getElementById('seuil-global')?.value) || 2000;
+  const alertesEl = document.getElementById('alertes-container');
+  const stocksEl = document.getElementById('stocks-container');
+  if (!stocksEl) return;
+
+  let alertesHTML = '', stocksHTML = '';
+  users.forEach(u => {
+    const stock = calcStockStation(u.id);
+    const jaugeages = (DB.get('jaugeages') || []).filter(j => j.stationId === u.id).sort((a,b) => b.date.localeCompare(a.date));
+    const lastJauge = jaugeages[0];
+    if (stock.gasoil < seuil) {
+      alertesHTML += `<div class="alert-stock ${stock.gasoil < seuil/2 ? '' : 'alert-stock-warn'}">${stock.gasoil < seuil/2 ? '🔴' : '🟡'} <strong>${u.station}</strong> — Gasoil: <strong>${stock.gasoil.toLocaleString('fr')} L</strong> (seuil: ${seuil.toLocaleString('fr')} L)</div>`;
+    }
+    if (stock.super < seuil) {
+      alertesHTML += `<div class="alert-stock ${stock.super < seuil/2 ? '' : 'alert-stock-warn'}">${stock.super < seuil/2 ? '🔴' : '🟡'} <strong>${u.station}</strong> — Super: <strong>${stock.super.toLocaleString('fr')} L</strong> (seuil: ${seuil.toLocaleString('fr')} L)</div>`;
+    }
+    const pctG = Math.min(100, (stock.gasoil / 30000) * 100);
+    const pctS = Math.min(100, (stock.super / 20000) * 100);
+    const colorG = pctG < 15 ? 'stock-danger' : pctG < 30 ? 'stock-warn' : 'stock-ok';
+    const colorS = pctS < 15 ? 'stock-danger' : pctS < 30 ? 'stock-warn' : 'stock-ok';
+    stocksHTML += `<div class="card" style="margin-bottom:16px;">
+      <div class="card-header"><div class="card-title">⛽ ${u.station}</div><span style="font-size:12px;color:var(--muted);">Dernier jaugeage: ${lastJauge ? formatDate(lastJauge.date) : 'Aucun'}</span></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div><div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--gasoil);margin-bottom:6px;">🔵 Gasoil</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700;color:var(--gasoil);">${stock.gasoil.toLocaleString('fr')} <span style="font-size:12px;">L</span></div>
+          <div class="stock-bar-wrap"><div class="stock-bar-bg"><div class="stock-bar-fill ${colorG}" style="width:${pctG}%;"></div></div></div>
+          ${lastJauge && lastJauge.cuve_g1 !== undefined ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;">Jauge: ${((lastJauge.cuve_g1||0)+(lastJauge.cuve_g2||0)).toLocaleString('fr')} L</div>` : ''}</div>
+        <div><div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--super);margin-bottom:6px;">🔴 Super</div>
+          <div style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700;color:var(--super);">${stock.super.toLocaleString('fr')} <span style="font-size:12px;">L</span></div>
+          <div class="stock-bar-wrap"><div class="stock-bar-bg"><div class="stock-bar-fill ${colorS}" style="width:${pctS}%;"></div></div></div>
+          ${lastJauge && lastJauge.cuve_s1 !== undefined ? `<div style="font-size:11px;color:var(--muted);margin-top:4px;">Jauge: ${((lastJauge.cuve_s1||0)+(lastJauge.cuve_s2||0)).toLocaleString('fr')} L</div>` : ''}</div>
+      </div></div>`;
+  });
+  if (alertesEl) alertesEl.innerHTML = alertesHTML || '<div class="alert alert-success show" style="display:block;">✅ Tous les stocks sont au-dessus du seuil.</div>';
+  stocksEl.innerHTML = stocksHTML || '<div class="empty-state"><div class="empty-state-icon">📦</div><div class="empty-state-text">Aucune station enregistrée</div></div>';
+}
+
+// ═══════════════════════════════════════════════
+// RAPPORTS & GRAPHIQUES
+// ═══════════════════════════════════════════════
+function initRapportMois() {
+  const sel = document.getElementById('rapport-mois');
+  if (!sel) return;
+  const releves = DB.get('releves') || [];
+  const moisSet = [...new Set(releves.map(r => r.date.substring(0,7)))].sort().reverse();
+  const now = new Date().toISOString().substring(0,7);
+  const moisList = moisSet.length ? moisSet : [now];
+  sel.innerHTML = moisList.map(m => {
+    const [y, mo] = m.split('-');
+    const label = new Date(y, mo-1, 1).toLocaleDateString('fr-FR', {month:'long', year:'numeric'});
+    return `<option value="${m}">${label}</option>`;
+  }).join('');
+}
+
+function renderRapports() {
+  initRapportMois();
+  const mois = document.getElementById('rapport-mois')?.value || new Date().toISOString().substring(0,7);
+  const releves = (DB.get('releves') || []).filter(r => r.date.startsWith(mois));
+  const receptions = (DB.get('receptions') || []).filter(r => (r.date||'').startsWith(mois));
+  const users = (DB.get('users') || []).filter(u => u.role === 'gerant');
+  const jaugeages = DB.get('jaugeages') || [];
+  renderChartVentes(releves, mois);
+  renderCompareStations(releves, users);
+  renderRapportStations(releves, receptions, users);
+  renderEcarts(users, jaugeages);
+}
+
+function renderChartVentes(releves, mois) {
+  const canvas = document.getElementById('chart-ventes');
+  if (!canvas) return;
+  const [year, month] = mois.split('-').map(Number);
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const days = Array.from({length: daysInMonth}, (_, i) => `${mois}-${String(i+1).padStart(2,'0')}`);
+  const gasoilData = days.map(d => releves.filter(r => r.date===d).reduce((s,r) => s+(r.gasoil?.vente||0), 0));
+  const superData = days.map(d => releves.filter(r => r.date===d).reduce((s,r) => s+(r.super?.vente||0), 0));
+  const maxVal = Math.max(...gasoilData, ...superData, 1);
+  const w = canvas.offsetWidth || 600, h = 200;
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, w, h);
+  const padL=50, padR=10, padT=15, padB=30;
+  const chartW = w-padL-padR, chartH = h-padT-padB;
+  const barW = Math.max(2, chartW/daysInMonth/2-1);
+  ctx.strokeStyle='#1e2530'; ctx.lineWidth=1;
+  for (let i=0; i<=4; i++) {
+    const y = padT+chartH-(i/4)*chartH;
+    ctx.beginPath(); ctx.moveTo(padL,y); ctx.lineTo(w-padR,y); ctx.stroke();
+    ctx.fillStyle='#6b7585'; ctx.font='9px monospace';
+    ctx.fillText(((maxVal*i/4)/1000).toFixed(0)+'k', 2, y+3);
+  }
+  days.forEach((d, i) => {
+    const x = padL+(i/daysInMonth)*chartW;
+    const hG=(gasoilData[i]/maxVal)*chartH;
+    ctx.fillStyle='#3b9eff'; ctx.fillRect(x, padT+chartH-hG, barW, hG);
+    const hS=(superData[i]/maxVal)*chartH;
+    ctx.fillStyle='#ff5a5a'; ctx.fillRect(x+barW+1, padT+chartH-hS, barW, hS);
+    if (i%5===0) { ctx.fillStyle='#6b7585'; ctx.font='9px monospace'; ctx.fillText(String(i+1), x, h-5); }
+  });
+  ctx.fillStyle='#3b9eff'; ctx.fillRect(padL,2,10,8);
+  ctx.fillStyle='#e8eaf0'; ctx.font='10px sans-serif'; ctx.fillText('Gasoil', padL+14, 10);
+  ctx.fillStyle='#ff5a5a'; ctx.fillRect(padL+70,2,10,8);
+  ctx.fillText('Super', padL+84, 10);
+}
+
+function renderCompareStations(releves, users) {
+  const el = document.getElementById('compare-stations');
+  if (!el) return;
+  const totals = users.map(u => ({
+    name: u.station,
+    gasoil: releves.filter(r => r.stationId===u.id).reduce((s,r) => s+(r.gasoil?.vente||0), 0),
+    super: releves.filter(r => r.stationId===u.id).reduce((s,r) => s+(r.super?.vente||0), 0),
+  }));
+  const maxG = Math.max(...totals.map(t => t.gasoil), 1);
+  const maxS = Math.max(...totals.map(t => t.super), 1);
+  el.innerHTML = totals.map(t => `<div style="margin-bottom:12px;">
+    <div style="font-size:12px;font-weight:700;margin-bottom:4px;">${t.name}</div>
+    <div class="compare-bar"><span class="compare-bar-label" style="color:var(--gasoil);">🔵 Gasoil</span><div class="compare-bar-track"><div class="compare-bar-fill" style="width:${(t.gasoil/maxG*100).toFixed(0)}%;background:var(--gasoil);">${t.gasoil>500?t.gasoil.toLocaleString('fr')+'L':''}</div></div><span style="font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--gasoil);min-width:70px;text-align:right;">${t.gasoil.toLocaleString('fr')} L</span></div>
+    <div class="compare-bar"><span class="compare-bar-label" style="color:var(--super);">🔴 Super</span><div class="compare-bar-track"><div class="compare-bar-fill" style="width:${(t.super/maxS*100).toFixed(0)}%;background:var(--super);">${t.super>500?t.super.toLocaleString('fr')+'L':''}</div></div><span style="font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--super);min-width:70px;text-align:right;">${t.super.toLocaleString('fr')} L</span></div>
+  </div>`).join('') || '<div class="empty-state"><div class="empty-state-icon">📊</div><div class="empty-state-text">Aucune donnée ce mois</div></div>';
+}
+
+function renderRapportStations(releves, receptions, users) {
+  const el = document.getElementById('rapport-stations');
+  if (!el) return;
+  el.innerHTML = users.map(u => {
+    const stR = releves.filter(r => r.stationId===u.id);
+    const stRcv = receptions.filter(r => r.stationId===u.id);
+    const totalG = stR.reduce((s,r) => s+(r.gasoil?.vente||0), 0);
+    const totalS = stR.reduce((s,r) => s+(r.super?.vente||0), 0);
+    const recvG = stRcv.filter(r => r.produit==='gasoil').reduce((s,r) => s+(r.quantite||0), 0);
+    const recvS = stRcv.filter(r => r.produit==='super').reduce((s,r) => s+(r.quantite||0), 0);
+    const retG = stR.reduce((s,r) => s+(r.gasoil?.retour||0), 0);
+    const retS = stR.reduce((s,r) => s+(r.super?.retour||0), 0);
+    return `<div class="rapport-card">
+      <div class="rapport-card-title">⛽ ${u.station}</div>
+      <div class="rapport-row"><span class="rapport-label">Jours actifs</span><span class="rapport-value">${stR.length} j</span></div>
+      <div class="rapport-row"><span class="rapport-label">🔵 Gasoil vendu</span><span class="rapport-value" style="color:var(--gasoil);">${totalG.toLocaleString('fr')} L</span></div>
+      <div class="rapport-row"><span class="rapport-label">🔴 Super vendu</span><span class="rapport-value" style="color:var(--super);">${totalS.toLocaleString('fr')} L</span></div>
+      <div class="rapport-row"><span class="rapport-label">📥 Réceptions G.</span><span class="rapport-value">${recvG.toLocaleString('fr')} L</span></div>
+      <div class="rapport-row"><span class="rapport-label">📥 Réceptions S.</span><span class="rapport-value">${recvS.toLocaleString('fr')} L</span></div>
+      <div class="rapport-row"><span class="rapport-label">↩ Retours G.</span><span class="rapport-value">${retG.toLocaleString('fr')} L</span></div>
+      <div class="rapport-row"><span class="rapport-label">↩ Retours S.</span><span class="rapport-value">${retS.toLocaleString('fr')} L</span></div>
+      <div class="rapport-row" style="border-top:2px solid var(--border2);margin-top:4px;padding-top:8px;">
+        <span class="rapport-label">📦 Total vendu</span><span class="rapport-value" style="color:var(--accent);">${(totalG+totalS).toLocaleString('fr')} L</span>
+      </div></div>`;
+  }).join('') || '<div class="empty-state"><div class="empty-state-icon">📋</div><div class="empty-state-text">Aucune donnée</div></div>';
+}
+
+function renderEcarts(users, jaugeages) {
+  const tbody = document.getElementById('tbody-ecarts');
+  if (!tbody) return;
+  let rows = '';
+  users.forEach(u => {
+    const stock = calcStockStation(u.id);
+    const lastJ = [...jaugeages].filter(j => j.stationId===u.id).sort((a,b) => b.date.localeCompare(a.date))[0];
+    const jG = lastJ && lastJ.cuve_g1 !== undefined ? (lastJ.cuve_g1||0)+(lastJ.cuve_g2||0) : null;
+    const jS = lastJ && lastJ.cuve_s1 !== undefined ? (lastJ.cuve_s1||0)+(lastJ.cuve_s2||0) : null;
+    const eG = jG !== null ? jG - stock.gasoil : null;
+    const eS = jS !== null ? jS - stock.super : null;
+    const fmtE = (e) => e===null ? '—' : `<span class="${e>=0?'ecart-pos':'ecart-neg'}">${e>=0?'+':''}${e.toLocaleString('fr')} L</span>`;
+    const fmtSt = (e) => e===null ? '—' : Math.abs(e)<100 ? '<span class="badge badge-active">Normal</span>' : e<0 ? '<span class="badge badge-super">Perte</span>' : '<span class="badge badge-gasoil">Excédent</span>';
+    rows += `<tr><td rowspan="2"><strong>${u.station}</strong></td><td><span class="badge badge-gasoil">Gasoil</span></td><td class="mono">${stock.gasoil.toLocaleString('fr')} L</td><td class="mono">${jG!==null?jG.toLocaleString('fr')+' L':'—'}</td><td class="mono">${fmtE(eG)}</td><td>${fmtSt(eG)}</td></tr>`;
+    rows += `<tr><td><span class="badge badge-super">Super</span></td><td class="mono">${stock.super.toLocaleString('fr')} L</td><td class="mono">${jS!==null?jS.toLocaleString('fr')+' L':'—'}</td><td class="mono">${fmtE(eS)}</td><td>${fmtSt(eS)}</td></tr>`;
+  });
+  tbody.innerHTML = rows || '<tr><td colspan="6"><div class="empty-state"><div class="empty-state-icon">📊</div><div class="empty-state-text">Aucune donnée</div></div></td></tr>';
+}
+
+function exportRapport() {
+  const mois = document.getElementById('rapport-mois')?.value || new Date().toISOString().substring(0,7);
+  const releves = (DB.get('releves') || []).filter(r => r.date.startsWith(mois));
+  const rows = [['Date','Station','Gasoil Vendu (L)','Super Vendu (L)','Retour G (L)','Retour S (L)','Note']];
+  releves.forEach(r => rows.push([r.date, r.stationName, r.gasoil?.vente||0, r.super?.vente||0, r.gasoil?.retour||0, r.super?.retour||0, r.note||'']));
+  const csv = rows.map(r => r.join(';')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'rapport_'+mois+'.csv'; a.click();
+}
+
+// ═══════════════════════════════════════════════
+// RAPPORTS GÉRANT
+// ═══════════════════════════════════════════════
+function initRapportGerant() {
+  const el = document.getElementById('rapport-gerant-station');
+  if (el) el.textContent = currentUser.station;
+  initGerantRapportMois();
+  renderRapportsGerant();
+}
+
+function initGerantRapportMois() {
+  const sel = document.getElementById('gerant-rapport-mois');
+  if (!sel) return;
+  const releves = (DB.get('releves') || []).filter(r => r.stationId === currentUser.id);
+  const moisSet = [...new Set(releves.map(r => r.date.substring(0,7)))].sort().reverse();
+  const now = new Date().toISOString().substring(0,7);
+  const moisList = moisSet.length ? moisSet : [now];
+  sel.innerHTML = moisList.map(m => {
+    const [y, mo] = m.split('-');
+    const label = new Date(y, mo-1, 1).toLocaleDateString('fr-FR', {month:'long', year:'numeric'});
+    return `<option value="${m}">${label}</option>`;
+  }).join('');
+}
+
+function renderRapportsGerant() {
+  const mois = document.getElementById('gerant-rapport-mois')?.value || new Date().toISOString().substring(0,7);
+  const releves = (DB.get('releves') || [])
+    .filter(r => r.stationId === currentUser.id && r.date.startsWith(mois))
+    .sort((a,b) => a.date.localeCompare(b.date));
+  const receptions = (DB.get('receptions') || [])
+    .filter(r => r.stationId === currentUser.id && (r.date||'').startsWith(mois));
+
+  // Stats du mois
+  const totalG = releves.reduce((s,r) => s+(r.gasoil?.vente||0), 0);
+  const totalS = releves.reduce((s,r) => s+(r.super?.vente||0), 0);
+  const retourG = releves.reduce((s,r) => s+(r.gasoil?.retour||0), 0);
+  const retourS = releves.reduce((s,r) => s+(r.super?.retour||0), 0);
+  const recvG = receptions.filter(r=>r.produit==='gasoil').reduce((s,r) => s+(r.quantite||0), 0);
+  const recvS = receptions.filter(r=>r.produit==='super').reduce((s,r) => s+(r.quantite||0), 0);
+  const joursActifs = releves.length;
+  const moyG = joursActifs ? totalG/joursActifs : 0;
+  const moyS = joursActifs ? totalS/joursActifs : 0;
+
+  const statsEl = document.getElementById('gerant-stats-mois');
+  if (statsEl) {
+    statsEl.innerHTML = `
+      <div class="gerant-stat-mois stat-card s-gasoil">
+        <div class="gerant-stat-label">🔵 Gasoil vendu</div>
+        <div class="gerant-stat-value" style="color:var(--gasoil);">${totalG.toLocaleString('fr')}</div>
+        <div class="gerant-stat-unit">litres ce mois</div>
+      </div>
+      <div class="gerant-stat-mois stat-card s-super">
+        <div class="gerant-stat-label">🔴 Super vendu</div>
+        <div class="gerant-stat-value" style="color:var(--super);">${totalS.toLocaleString('fr')}</div>
+        <div class="gerant-stat-unit">litres ce mois</div>
+      </div>
+      <div class="gerant-stat-mois stat-card s-accent">
+        <div class="gerant-stat-label">📅 Jours actifs</div>
+        <div class="gerant-stat-value" style="color:var(--accent);">${joursActifs}</div>
+        <div class="gerant-stat-unit">jours saisis</div>
+      </div>
+      <div class="gerant-stat-mois stat-card s-success">
+        <div class="gerant-stat-label">📊 Moyenne/jour</div>
+        <div class="gerant-stat-value" style="color:var(--success);">${(moyG+moyS).toFixed(0)}</div>
+        <div class="gerant-stat-unit">litres/jour (G+S)</div>
+      </div>
+      <div class="gerant-stat-mois stat-card s-gasoil">
+        <div class="gerant-stat-label">📥 Réceptions Gasoil</div>
+        <div class="gerant-stat-value" style="color:var(--gasoil);">${recvG.toLocaleString('fr')}</div>
+        <div class="gerant-stat-unit">litres reçus</div>
+      </div>
+      <div class="gerant-stat-mois stat-card s-super">
+        <div class="gerant-stat-label">📥 Réceptions Super</div>
+        <div class="gerant-stat-value" style="color:var(--super);">${recvS.toLocaleString('fr')}</div>
+        <div class="gerant-stat-unit">litres reçus</div>
+      </div>
+    `;
+  }
+
+  // Graphique par semaine
+  renderChartSemaine(releves, mois);
+
+  // Tableau détaillé
+  const tbody = document.getElementById('tbody-rapport-gerant');
+  const tfoot = document.getElementById('tfoot-rapport-gerant');
+  if (tbody) {
+    if (!releves.length) {
+      tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="empty-state-icon">📭</div><div class="empty-state-text">Aucun relevé ce mois</div></div></td></tr>';
+    } else {
+      tbody.innerHTML = releves.map(r => {
+        const recvJour = receptions.filter(rv => rv.relevDate === r.date);
+        const recvStr = recvJour.length ? recvJour.map(rv => (rv.produit==='gasoil'?'🔵':'🔴')+' '+rv.quantite.toFixed(0)+'L').join(', ') : '—';
+        return `<tr>
+          <td class="mono">${formatDate(r.date)}</td>
+          <td class="mono" style="color:var(--gasoil); font-weight:700;">${(r.gasoil?.vente||0).toFixed(2)}</td>
+          <td class="mono" style="color:var(--muted);">${(r.gasoil?.retour||0).toFixed(2)}</td>
+          <td class="mono" style="color:var(--super); font-weight:700;">${(r.super?.vente||0).toFixed(2)}</td>
+          <td class="mono" style="color:var(--muted);">${(r.super?.retour||0).toFixed(2)}</td>
+          <td style="font-size:12px;">${recvStr}</td>
+          <td style="font-size:12px; color:var(--muted);">${r.note||'—'}</td>
+        </tr>`;
+      }).join('');
+    }
+  }
+  if (tfoot) {
+    tfoot.innerHTML = `<tr>
+      <td><strong>TOTAL</strong></td>
+      <td class="mono" style="color:var(--gasoil);">${totalG.toFixed(2)}</td>
+      <td class="mono" style="color:var(--muted);">${retourG.toFixed(2)}</td>
+      <td class="mono" style="color:var(--super);">${totalS.toFixed(2)}</td>
+      <td class="mono" style="color:var(--muted);">${retourS.toFixed(2)}</td>
+      <td class="mono">${(recvG+recvS).toFixed(0)} L</td>
+      <td></td>
+    </tr>`;
+  }
+}
+
+function renderChartSemaine(releves, mois) {
+  const canvas = document.getElementById('chart-gerant-semaine');
+  if (!canvas) return;
+  // Grouper par semaine du mois
+  const semaines = [{label:'S1', days:[]},{label:'S2', days:[]},{label:'S3', days:[]},{label:'S4', days:[]},{label:'S5', days:[]}];
+  releves.forEach(r => {
+    const day = parseInt(r.date.split('-')[2]);
+    const sw = Math.min(4, Math.floor((day-1)/7));
+    semaines[sw].days.push(r);
+  });
+
+  const dataG = semaines.map(s => s.days.reduce((t,r) => t+(r.gasoil?.vente||0), 0));
+  const dataS = semaines.map(s => s.days.reduce((t,r) => t+(r.super?.vente||0), 0));
+  const maxVal = Math.max(...dataG, ...dataS, 1);
+
+  const w = canvas.offsetWidth || 400, h = 200;
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, w, h);
+  const padL=50, padR=20, padT=15, padB=35;
+  const chartW=w-padL-padR, chartH=h-padT-padB;
+  const nbSem = 5;
+  const groupW = chartW / nbSem;
+  const barW = groupW * 0.3;
+
+  // Grille
+  for (let i=0; i<=4; i++) {
+    const y = padT+chartH-(i/4)*chartH;
+    ctx.strokeStyle='#1e2530'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(padL,y); ctx.lineTo(w-padR,y); ctx.stroke();
+    ctx.fillStyle='#6b7585'; ctx.font='9px monospace';
+    ctx.fillText(((maxVal*i/4)/1000).toFixed(0)+'k', 2, y+3);
+  }
+
+  semaines.forEach((s, i) => {
+    const x = padL + i*groupW + groupW*0.1;
+    // Gasoil
+    const hG = (dataG[i]/maxVal)*chartH;
+    ctx.fillStyle='#3b9eff';
+    ctx.fillRect(x, padT+chartH-hG, barW, hG);
+    // Super
+    const hS = (dataS[i]/maxVal)*chartH;
+    ctx.fillStyle='#ff5a5a';
+    ctx.fillRect(x+barW+3, padT+chartH-hS, barW, hS);
+    // Label semaine
+    ctx.fillStyle='#e8eaf0'; ctx.font='11px sans-serif';
+    ctx.fillText(s.label, x+barW/2-4, h-8);
+    // Valeurs au dessus
+    if (dataG[i]>0) { ctx.fillStyle='#3b9eff'; ctx.font='9px monospace'; ctx.fillText((dataG[i]/1000).toFixed(1)+'k', x, padT+chartH-hG-3); }
+    if (dataS[i]>0) { ctx.fillStyle='#ff5a5a'; ctx.font='9px monospace'; ctx.fillText((dataS[i]/1000).toFixed(1)+'k', x+barW+3, padT+chartH-hS-3); }
+  });
+
+  // Légende
+  ctx.fillStyle='#3b9eff'; ctx.fillRect(padL,2,10,8);
+  ctx.fillStyle='#e8eaf0'; ctx.font='10px sans-serif'; ctx.fillText('Gasoil', padL+14, 10);
+  ctx.fillStyle='#ff5a5a'; ctx.fillRect(padL+70,2,10,8);
+  ctx.fillText('Super', padL+84, 10);
+}
+
+function printRapportJournalier() {
+  const mois = document.getElementById('gerant-rapport-mois')?.value || new Date().toISOString().substring(0,7);
+  const [y, mo] = mois.split('-');
+  const labelMois = new Date(y, mo-1, 1).toLocaleDateString('fr-FR', {month:'long', year:'numeric'});
+  const releves = (DB.get('releves') || [])
+    .filter(r => r.stationId === currentUser.id && r.date.startsWith(mois))
+    .sort((a,b) => a.date.localeCompare(b.date));
+  const totalG = releves.reduce((s,r) => s+(r.gasoil?.vente||0), 0);
+  const totalS = releves.reduce((s,r) => s+(r.super?.vente||0), 0);
+
+  const printWin = window.open('', '_blank');
+  printWin.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
+  <title>Rapport ${currentUser.station} — ${labelMois}</title>
+  <style>
+    body { font-family: Arial, sans-serif; font-size: 12px; padding: 20px; color: #000; }
+    h1 { font-size: 18px; margin-bottom: 4px; }
+    h2 { font-size: 13px; color: #666; margin-bottom: 20px; font-weight: normal; }
+    table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+    th { background: #f0f0f0; padding: 8px 10px; text-align: left; font-size: 11px; text-transform: uppercase; border: 1px solid #ddd; }
+    td { padding: 7px 10px; border: 1px solid #ddd; }
+    tr:nth-child(even) { background: #f9f9f9; }
+    tfoot td { font-weight: 700; background: #e8e8e8; }
+    .header { display: flex; justify-content: space-between; border-bottom: 2px solid #000; padding-bottom: 12px; margin-bottom: 16px; }
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
+    .stat-box { border: 1px solid #ddd; padding: 10px; text-align: center; }
+    .stat-box .val { font-size: 20px; font-weight: 700; }
+    .stat-box .lbl { font-size: 10px; color: #666; text-transform: uppercase; }
+    @media print { button { display: none; } }
+  </style></head><body>
+  <div class="header">
+    <div><h1>⛽ ELTON GB CONTRÔLE</h1><h2>Rapport mensuel — ${currentUser.station}</h2></div>
+    <div style="text-align:right;font-size:12px;"><strong>${labelMois.toUpperCase()}</strong><br>Gérant: ${currentUser.name}<br>Imprimé le: ${new Date().toLocaleDateString('fr-FR')}</div>
+  </div>
+  <div class="stats">
+    <div class="stat-box"><div class="val">${totalG.toLocaleString('fr')} L</div><div class="lbl">🔵 Gasoil vendu</div></div>
+    <div class="stat-box"><div class="val">${totalS.toLocaleString('fr')} L</div><div class="lbl">🔴 Super vendu</div></div>
+    <div class="stat-box"><div class="val">${releves.length} j</div><div class="lbl">📅 Jours actifs</div></div>
+  </div>
+  <table>
+    <thead><tr><th>Date</th><th>Gasoil Vendu (L)</th><th>Retour G. (L)</th><th>Super Vendu (L)</th><th>Retour S. (L)</th><th>Note</th></tr></thead>
+    <tbody>${releves.map(r => `<tr><td>${formatDate(r.date)}</td><td>${(r.gasoil?.vente||0).toFixed(2)}</td><td>${(r.gasoil?.retour||0).toFixed(2)}</td><td>${(r.super?.vente||0).toFixed(2)}</td><td>${(r.super?.retour||0).toFixed(2)}</td><td>${r.note||'—'}</td></tr>`).join('')}</tbody>
+    <tfoot><tr><td><strong>TOTAL</strong></td><td><strong>${totalG.toFixed(2)}</strong></td><td></td><td><strong>${totalS.toFixed(2)}</strong></td><td></td><td></td></tr></tfoot>
+  </table>
+  <br><button onclick="window.print()" style="padding:10px 20px;background:#f0a500;border:none;cursor:pointer;font-size:14px;font-weight:700;">🖨️ IMPRIMER</button>
+  </body></html>`);
+  printWin.document.close();
+  setTimeout(() => printWin.print(), 500);
+}
+
+function exportRapportGerantPDF() {
+  // Export CSV qui peut être converti en PDF
+  const mois = document.getElementById('gerant-rapport-mois')?.value || new Date().toISOString().substring(0,7);
+  const releves = (DB.get('releves') || [])
+    .filter(r => r.stationId === currentUser.id && r.date.startsWith(mois))
+    .sort((a,b) => a.date.localeCompare(b.date));
+  const receptions = (DB.get('receptions') || [])
+    .filter(r => r.stationId === currentUser.id && (r.date||'').startsWith(mois));
+  const totalG = releves.reduce((s,r) => s+(r.gasoil?.vente||0), 0);
+  const totalS = releves.reduce((s,r) => s+(r.super?.vente||0), 0);
+  const recvG = receptions.filter(r=>r.produit==='gasoil').reduce((s,r) => s+(r.quantite||0), 0);
+  const recvS = receptions.filter(r=>r.produit==='super').reduce((s,r) => s+(r.quantite||0), 0);
+
+  const rows = [
+    ['RAPPORT MENSUEL — ELTON GB CONTRÔLE'],
+    ['Station:', currentUser.station],
+    ['Gérant:', currentUser.name],
+    ['Mois:', mois],
+    ['Généré le:', new Date().toLocaleDateString('fr-FR')],
+    [],
+    ['RÉSUMÉ'],
+    ['Gasoil vendu (L):', totalG.toFixed(2)],
+    ['Super vendu (L):', totalS.toFixed(2)],
+    ['Réceptions gasoil (L):', recvG.toFixed(0)],
+    ['Réceptions super (L):', recvS.toFixed(0)],
+    ['Jours actifs:', releves.length],
+    [],
+    ['DÉTAIL JOURNALIER'],
+    ['Date','Gasoil Vendu (L)','Retour G. (L)','Super Vendu (L)','Retour S. (L)','Note'],
+    ...releves.map(r => [r.date, (r.gasoil?.vente||0).toFixed(2), (r.gasoil?.retour||0).toFixed(2), (r.super?.vente||0).toFixed(2), (r.super?.retour||0).toFixed(2), r.note||'']),
+    [],
+    ['TOTAL', totalG.toFixed(2), '', totalS.toFixed(2), '', ''],
+  ];
+  const csv = rows.map(r => Array.isArray(r) ? r.join(';') : r).join('\n');
+  const blob = new Blob(['﻿'+csv], {type:'text/csv;charset=utf-8;'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `rapport_${currentUser.station.replace(/\s/g,'_')}_${mois}.csv`;
+  a.click();
+}
+
+// ═══════════════════════════════════════════════
+// DÉMARRAGE
+// ═══════════════════════════════════════════════
+async function startApp() {
+  initTheme();
+  updateDateDisplay();
+  await initData();
+  if (restoreSession()) {
+    enterApp();
+  }
+}
+
+window.setLang = setLang;
+window.toggleTheme = toggleTheme;
+window.calcCA = calcCA;
+window.previewPhoto = previewPhoto;
+window.renderStocks = renderStocks;
+window.renderRapports = renderRapports;
+window.renderRapportsGerant = renderRapportsGerant;
+window.printRapportJournalier = printRapportJournalier;
+window.exportRapportGerantPDF = exportRapportGerantPDF;
+window.exportRapport = exportRapport;
+
+// Attacher le bouton login via addEventListener (plus fiable que onclick)
+document.addEventListener('DOMContentLoaded', function() {
+  const btnLogin = document.getElementById('btn-login');
+  if (btnLogin) {
+    btnLogin.addEventListener('click', function() { doLogin(); });
+  }
+  document.getElementById('login-pass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+  document.getElementById('login-user').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+});
+
+// Attacher les events immédiatement
+document.addEventListener('DOMContentLoaded', function() {
+  attachLoginEvents();
+});
+// Si DOMContentLoaded déjà passé
+if (document.readyState !== 'loading') {
+  attachLoginEvents();
+}
+
+// Charger Firebase puis démarrer
+loadFirebaseSDK(function() {
+  startApp();
+});
+</script>
+
+<!-- PWA INSTALL BANNER -->
+<div id="pwa-banner">
+  <div class="pwa-banner-icon">⛽</div>
+  <div class="pwa-banner-text">
+    <div class="pwa-banner-title">Installer Elton GB Contrôle</div>
+    <div class="pwa-banner-sub">Accès rapide depuis votre écran d'accueil</div>
+  </div>
+  <div class="pwa-banner-actions">
+    <button class="btn-install" id="btn-install-pwa">⬇ INSTALLER</button>
+    <button class="btn-dismiss" id="btn-dismiss-pwa">Plus tard</button>
+  </div>
+</div>
+
+<div id="offline-indicator">⚡ Mode hors-ligne — données sauvegardées localement</div>
+
+<script>
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  });
+}
+let deferredPrompt = null;
+const banner = document.getElementById('pwa-banner');
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault(); deferredPrompt = e;
+  if (!localStorage.getItem('pwa_dismissed')) setTimeout(() => banner.classList.add('show'), 3000);
+});
+document.getElementById('btn-install-pwa')?.addEventListener('click', async () => {
+  if (!deferredPrompt) return;
+  banner.classList.remove('show'); deferredPrompt.prompt();
+  await deferredPrompt.userChoice; deferredPrompt = null;
+});
+document.getElementById('btn-dismiss-pwa')?.addEventListener('click', () => {
+  banner.classList.remove('show');
+  localStorage.setItem('pwa_dismissed', '1');
+});
+const offlineIndicator = document.getElementById('offline-indicator');
+function updateOnlineStatus() { offlineIndicator.classList.toggle('show', !navigator.onLine); }
+window.addEventListener('online', updateOnlineStatus);
+window.addEventListener('offline', updateOnlineStatus);
+updateOnlineStatus();
+</script>
+</body>
+</html>
